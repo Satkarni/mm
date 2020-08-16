@@ -227,9 +227,34 @@ int check_if_nbr_open(struct cell *c,dir nbr_dir)
     return 0;
 }
 
+// returns pointer to valid and open nbr
+struct cell *get_nbr(dir d,struct cell *p)
+{
+    int isvalid = 0,isopen = 0;
+    int nx,ny;
+    if(d == _n){
+        nx = p->x; ny = p->y - 1;
+    }
+    if(d == _e){
+        nx = p->x + 1 ; ny = p->y;
+    }
+    if(d == _s){
+        nx = p->x; ny = p->y + 1;
+    }
+    if(d == _w){
+        nx = p->x - 1; ny = p->y;
+    }
+    isvalid = check_coord_valid(nx,ny);
+    isopen =  check_if_nbr_open(p,d);
+    if(isvalid && isopen){
+        return &maze.cells[nx][ny];
+    }
+    return NULL;
+}
+
 // gets nbrs of c and fills list with them
 // returns number of open and valid nbrs
-int get_nbr(struct cell **list,struct cell *c)
+int get_nbrs(struct cell **list,struct cell *c)
 {
     int i = 0;
     if(list == NULL || c == NULL)   return -1;
