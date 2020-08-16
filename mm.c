@@ -294,7 +294,55 @@ void sort_nbrs(struct cell **list,int num)
     } 
 }
 
+// container for cell pointer queue
+struct cell *arr[SZ*SZ];
 
+struct cq{
+    int r;
+    int w;
+    int count;
+};
+
+struct cq cq = { .r = 0, .w = 0, .count = 0 };
+
+int q_isempty()
+{
+    return (cq.count == 0);
+}
+
+void add_q(struct cell *p)
+{
+    arr[cq.w] = p;
+    mvprintw(45,0,"add x,y %d,%d",p->x,p->y);
+    cq.w = (cq.w+1)%(SZ*SZ);
+    cq.count++;
+}
+
+struct cell *peek_q()
+{
+    if(!q_isempty())
+        return arr[cq.r];
+    else
+        return NULL;
+}
+
+void pop_q()
+{
+    if(!q_isempty()){
+        cq.r = (cq.r+1)%(SZ*SZ);
+        cq.count--;
+    }
+}
+
+void q_status()
+{
+    mvprintw(41,0,"c %d, r %d, w %d\n",cq.count,cq.r,cq.w);
+}
+
+void reset_q()
+{
+    cq.w = cq.r = cq.count = 0;
+}
 
 
 int main(int argc, char *argv[]) {
@@ -362,16 +410,17 @@ int main(int argc, char *argv[]) {
         s = getsym(mm.d);
         mvprintw(mm.my,mm.mx,&s);
 
-
-
         mvprintw(40,0,"Status: ");
         mvprintw(40,10,"x: %d, y: %d",mm.x,mm.y);
+        q_status();
+
         refresh();
         usleep(DELAY);
     }
 	
 
 	endwin(); // Restore normal terminal behavior
+
 }
 
 #if 0
