@@ -344,6 +344,57 @@ void reset_q()
     cq.w = cq.r = cq.count = 0;
 }
 
+void floodfill(int dx,int dy,int sx,int sy)
+{
+    // add sx,sy to queue of cell pointers
+    struct cell *p = &(maze.cells[sx][sy]);
+    p->value = 0;
+    add_q(p);
+
+    int cx = sx,cy = sy;
+
+    while(!(cx == dx && cy == dy)){
+
+        // get one cell from q to analyze its nbrs
+        struct cell *tmp = peek_q();
+        if(!tmp){
+            mvprintw(43,0,"cx %d,cy %d, Aborting...",cx,cy);
+            sleep(10);
+            break;
+        }else{
+            pop_q();    // delete from q if peek successful
+        }
+        cx = tmp->x;
+        cy = tmp->y;
+        //tmp->visited = 1;
+
+        // get valid open nbrs
+        struct cell *nbr_n = get_nbr(_n,tmp);
+        struct cell *nbr_e = get_nbr(_e,tmp);
+        struct cell *nbr_s = get_nbr(_s,tmp);
+        struct cell *nbr_w = get_nbr(_w,tmp);
+
+        int newval = tmp->value + 1;
+        if(nbr_n != NULL && nbr_n->value > newval){
+            nbr_n->value = newval;
+            add_q(nbr_n);
+        }
+        if(nbr_e != NULL && nbr_e->value > newval){
+            nbr_e->value = newval;
+            add_q(nbr_e);
+        }
+        if(nbr_s != NULL && nbr_s->value > newval){
+            nbr_s->value = newval;
+            add_q(nbr_s);
+        }
+        if(nbr_w != NULL && nbr_w->value > newval){
+            nbr_w->value = newval;
+            add_q(nbr_w);
+        }
+    }
+
+    reset_q();
+}
 
 int main(int argc, char *argv[]) {
 
@@ -360,12 +411,14 @@ int main(int argc, char *argv[]) {
 
     for(int i =0 ;i<SZ;i++){
         for(int j=0;j<SZ;j++){
-            maze.cells[i][j].value = -1;
+            maze.cells[i][j].x = i;
+            maze.cells[i][j].y = j;
+            maze.cells[i][j].value = 255;
         }
     }
     static char s;
-    int val= 0;
 
+    int f_flood = 0;
     clear();
     draw_maze();
     draw_maze_actual();
@@ -378,31 +431,39 @@ int main(int argc, char *argv[]) {
         case KEY_UP: 
             mm.y--;
             mm.d = _n;
-            val++;
+            f_flood = 1;
         break;  
         case KEY_RIGHT: 
             mm.x++;
             mm.d = _e;
-            val++;
+            f_flood = 1;
         break;
         case KEY_LEFT: 
             mm.x--;
             mm.d = _w;
-            val++;
+            f_flood = 1;
         break;
         case KEY_DOWN: 
             mm.y++;
             mm.d = _s;
-            val++;
+            f_flood = 1;
         break;
         case ERR:
         break;
         }
 
-        //maze.cells[mm.x][mm.y].value = val;
-
         short newwall = discover_walls(mm.x,mm.y);
         setwalls(mm.x,mm.y,newwall);
+        if(f_flood){
+               for(int i =0 ;i<SZ;i++){
+                    for(int j=0;j<SZ;j++){
+                        maze.cells[i][j].value = 255;
+                    }
+                }
+            floodfill(mm.x,mm.y,8,8);
+            f_flood = 0;
+        }
+        
 
         draw_maze();
         draw_maze_actual();
