@@ -181,7 +181,7 @@ void draw_maze()
             rect(3,i,j,getwalls(i,j));
             int x,y;
             getcenter(i,j,&x,&y);
-            //mvprintw(y,x,"%d",maze.cells[i][j].value);
+            mvprintw(y,x,"%d",maze.cells[i][j].value);
         }
     }
 }
