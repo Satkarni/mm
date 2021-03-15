@@ -4,61 +4,24 @@
 #include <stdlib.h>
 #include <time.h>
 
-// maze file
+// Maze file
 #include "yama2002.c"
 
-#define DELAY   100000    // 1ms tick
-#define SZ  16
+// Micromouse struct and constants definitions
+#include "mm.h"
 
-#define N  (1<<0)
-#define E  (1<<1)
-#define S  (1<<2)
-#define W  (1<<3)
+#define DELAY_MILLIS  100000
 
-int maxx, maxy;
-int cellw = 5, cellh = 2;
+int max_x, max_y;
+int cell_width = 5, cell_height = 2;
 
 
-// north wall only -> 0x01
-// east wall only  -> 0x02
-// south wall only -> 0x04
-// west wall only  -> 0x08
-int cur_maze[] = {
-  0x0E, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x09,
-  0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-  0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-  0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-  0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-  0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-  0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-  0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-  0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-  0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-  0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-  0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-  0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-  0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-  0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-  0x06, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x03,
-};
+static struct mm_pose mm_pose = {.x=0, .y=(MAZE_SIZE - 1), .curr_direction = _n};
+static struct maze maze;
 
-typedef enum {
-  _n,
-  _e,
-  _w,
-  _s
-} dir;
-struct mm {
-  int x;
-  int y;
-  int mx;
-  int my;
-  dir d;
-};
-static struct mm mm = {.x=0, .y=(SZ - 1), .d = _n};
-
-char getsym(dir d) {
-  char c;
+/* Get mouse directional symbol based on the direction */
+char get_mouse_symbol(dir d) {
+  char c = '-';
   switch (d) {
     case _n:
       c = '^';
@@ -72,36 +35,24 @@ char getsym(dir d) {
     case _s:
       c = 'v';
       break;
+    default:
+      break;
   }
   return c;
 }
 
-struct cell {
-  int x;
-  int y;
-  short wbm;
-  int visited;
-  int value;
-};
-
-// goal cells: (7,7) (7,8) (8,7) (8,8)
-// start cell: (0,15)
-struct maze {
-  struct cell cells[SZ][SZ];
-};
-static struct maze maze;
-
-void rect(int offset, int x, int y, short wbm) {
-  // each cell will be  w by  h px
+/* Draw the rectangle for the current cell as the micromouse discovers it */
+void draw_cell_rectangle(int offset, int x, int y, short wbm) {
+  // Each cell will be  w by  h px
   int y1, x1, y2, x2;
 
   // 0,0
   //      1,1
   //          2,2
-  y1 = cellh * y + 1;//maxy/4;
-  x1 = cellw * x + offset;//maxx/4;
-  y2 = y1 + cellh;
-  x2 = x1 + cellw;
+  y1 = cell_height * y + 1;//max_y/4;
+  x1 = cell_width * x + offset;//max_x/4;
+  y2 = y1 + cell_height;
+  x2 = x1 + cell_width;
 
 
   // draw lines as per wall bitmap
@@ -134,9 +85,9 @@ void rect(int offset, int x, int y, short wbm) {
 }
 
 
-void getcenter(int x, int y, int *dx, int *dy) {
-  *dx = /*maxx/4*/3 + cellw * x + cellw / 2;
-  *dy = /*maxy/4*/1 + cellh * y + cellh / 2;
+void get_center(int x, int y, int *dx, int *dy) {
+  *dx = /*max_x/4*/3 + cell_width * x + cell_width / 2;
+  *dy = /*max_y/4*/1 + cell_height * y + cell_height / 2;
 }
 
 // abstraction to read sensor value and get actual wall data
@@ -151,14 +102,14 @@ short discover_walls(int x, int y) {
   // x,y (0,15)  => 0
   // x,y (15,0)  => 255
   // x,y (15,15) => 240
-  w = yama2002_maz[SZ - 1 + SZ * x - y];
+  w = yama2002_maz[MAZE_SIZE - 1 + MAZE_SIZE * x - y];
   return w;
 }
 
 // get current wall data
 // maze will be initially empty, as mouse searches through the maze
 // wall data will be updated
-short getwalls(int x, int y) {
+short get_walls(int x, int y) {
   short w = 0;
 
   // Translation between this code's x-y orientation and wall data from maz file
@@ -167,40 +118,40 @@ short getwalls(int x, int y) {
   // x,y (0,15)  => 0
   // x,y (15,0)  => 255
   // x,y (15,15) => 240
-  w = cur_maze[SZ - 1 + SZ * x - y];
+  w = cur_maze[MAZE_SIZE - 1 + MAZE_SIZE * x - y];
   return w;
 }
 
-void setwalls(int x, int y, short walls) {
+void set_walls(int x, int y, short walls) {
   maze.cells[x][y].wbm = walls;
-  cur_maze[SZ - 1 + SZ * x - y] = walls;
+  cur_maze[MAZE_SIZE - 1 + MAZE_SIZE * x - y] = walls;
 }
 
 void draw_maze() {
-  for (int i = 0; i < SZ; i++) {
-    for (int j = 0; j < SZ; j++) {
-      rect(3, i, j, getwalls(i, j));
+  for (int i = 0; i < MAZE_SIZE; i++) {
+    for (int j = 0; j < MAZE_SIZE; j++) {
+      draw_cell_rectangle(3, i, j, get_walls(i, j));
       int x, y;
-      getcenter(i, j, &x, &y);
-      mvprintw(y, x, "%d", maze.cells[i][j].value);
+      get_center(i, j, &x, &y);
+      mvprintw(y, x, "%curr_direction", maze.cells[i][j].value);
     }
   }
 }
 
 void draw_maze_actual() {
-  for (int i = 0; i < SZ; i++) {
-    for (int j = 0; j < SZ; j++) {
-      rect(85, i, j, discover_walls(i, j));
+  for (int i = 0; i < MAZE_SIZE; i++) {
+    for (int j = 0; j < MAZE_SIZE; j++) {
+      draw_cell_rectangle(85, i, j, discover_walls(i, j));
       int x, y;
-      getcenter(i, j, &x, &y);
-      //mvprintw(y,x,"%d",maze.cells[i][j].value);
+      get_center(i, j, &x, &y);
+      //mvprintw(y,x,"%curr_direction",maze.cells[i][j].value);
     }
   }
 }
 
 // returns 1 if cell is valid
 int check_coord_valid(int x, int y) {
-  if (x < 0 || x >= SZ || y < 0 || y >= SZ)
+  if (x < 0 || x >= MAZE_SIZE || y < 0 || y >= MAZE_SIZE)
     return 0;
   else
     return 1;
@@ -209,7 +160,7 @@ int check_coord_valid(int x, int y) {
 // check if the cell with nx and ny is open to cell c
 // returns 1 if nbr is open
 int check_if_nbr_open(struct cell *c, dir nbr_dir) {
-  int walls = getwalls(c->x, c->y);
+  int walls = get_walls(c->x, c->y);
   if (nbr_dir == _n && !(walls & N)) {
     return 1;
   }
@@ -307,7 +258,7 @@ void sort_nbrs(struct cell **list, int num) {
 }
 
 // container for cell pointer queue
-struct cell *arr[SZ * SZ];
+struct cell *arr[MAZE_SIZE * MAZE_SIZE];
 
 struct cq {
   int r;
@@ -323,8 +274,8 @@ int q_isempty() {
 
 void add_q(struct cell *p) {
   arr[cq.w] = p;
-  mvprintw(45, 0, "add x,y %d,%d", p->x, p->y);
-  cq.w = (cq.w + 1) % (SZ * SZ);
+  mvprintw(45, 0, "add x,y %curr_direction,%curr_direction", p->x, p->y);
+  cq.w = (cq.w + 1) % (MAZE_SIZE * MAZE_SIZE);
   cq.count++;
 }
 
@@ -337,13 +288,13 @@ struct cell *peek_q() {
 
 void pop_q() {
   if (!q_isempty()) {
-    cq.r = (cq.r + 1) % (SZ * SZ);
+    cq.r = (cq.r + 1) % (MAZE_SIZE * MAZE_SIZE);
     cq.count--;
   }
 }
 
 void q_status() {
-  mvprintw(41, 0, "c %d, r %d, w %d\n", cq.count, cq.r, cq.w);
+  mvprintw(41, 0, "c %curr_direction, r %curr_direction, w %curr_direction\n", cq.count, cq.r, cq.w);
 }
 
 void reset_q() {
@@ -363,7 +314,7 @@ void floodfill(int dx, int dy, int sx, int sy) {
     // get one cell from q to analyze its nbrs
     struct cell *tmp = peek_q();
     if (!tmp) {
-      mvprintw(43, 0, "cx %d,cy %d, Aborting...", cx, cy);
+      mvprintw(43, 0, "cx %curr_direction,cy %curr_direction, Aborting...", cx, cy);
       sleep(10);
       break;
     } else {
@@ -409,13 +360,13 @@ int main(int argc, char *argv[]) {
   keypad(stdscr, TRUE);
   scrollok(stdscr, TRUE);
   noecho();
-  getmaxyx(stdscr, maxy, maxx);
+  getmaxyx(stdscr, max_y, max_x);
   curs_set(FALSE);
 
   srand(time(NULL));
 
-  for (int i = 0; i < SZ; i++) {
-    for (int j = 0; j < SZ; j++) {
+  for (int i = 0; i < MAZE_SIZE; i++) {
+    for (int j = 0; j < MAZE_SIZE; j++) {
       maze.cells[i][j].x = i;
       maze.cells[i][j].y = j;
       maze.cells[i][j].value = 255;
@@ -434,54 +385,54 @@ int main(int argc, char *argv[]) {
 
     switch (c) {
       case KEY_UP:
-        mm.y--;
-        mm.d = _n;
+        mm_pose.y--;
+        mm_pose.curr_direction = _n;
         f_flood = 1;
         break;
       case KEY_RIGHT:
-        mm.x++;
-        mm.d = _e;
+        mm_pose.x++;
+        mm_pose.curr_direction = _e;
         f_flood = 1;
         break;
       case KEY_LEFT:
-        mm.x--;
-        mm.d = _w;
+        mm_pose.x--;
+        mm_pose.curr_direction = _w;
         f_flood = 1;
         break;
       case KEY_DOWN:
-        mm.y++;
-        mm.d = _s;
+        mm_pose.y++;
+        mm_pose.curr_direction = _s;
         f_flood = 1;
         break;
       case ERR:
         break;
     }
 
-    short newwall = discover_walls(mm.x, mm.y);
-    setwalls(mm.x, mm.y, newwall);
+    short newwall = discover_walls(mm_pose.x, mm_pose.y);
+    set_walls(mm_pose.x, mm_pose.y, newwall);
     if (f_flood) {
-      for (int i = 0; i < SZ; i++) {
-        for (int j = 0; j < SZ; j++) {
+      for (int i = 0; i < MAZE_SIZE; i++) {
+        for (int j = 0; j < MAZE_SIZE; j++) {
           maze.cells[i][j].value = 255;
         }
       }
-      floodfill(mm.x, mm.y, 8, 8);
+      floodfill(mm_pose.x, mm_pose.y, 8, 8);
       f_flood = 0;
     }
 
 
     draw_maze();
     draw_maze_actual();
-    getcenter(mm.x, mm.y, &mm.mx, &mm.my);
-    s = getsym(mm.d);
-    mvprintw(mm.my, mm.mx, &s);
+    get_center(mm_pose.x, mm_pose.y, &mm_pose.mx, &mm_pose.my);
+    s = get_mouse_symbol(mm_pose.curr_direction);
+    mvprintw(mm_pose.my, mm_pose.mx, &s);
 
     mvprintw(40, 0, "Status: ");
-    mvprintw(40, 10, "x: %d, y: %d", mm.x, mm.y);
+    mvprintw(40, 10, "x: %curr_direction, y: %curr_direction", mm_pose.x, mm_pose.y);
     q_status();
 
     refresh();
-    usleep(DELAY);
+    usleep(DELAY_MILLIS);
   }
 
 
@@ -494,33 +445,33 @@ int c = getch();
 
         switch(c){
         case KEY_UP: 
-            mm.y--;
-            mm.d = _n;
+            mm_pose.y--;
+            mm_pose.curr_direction = _n;
             val++;
         break;  
         case KEY_RIGHT: 
-            mm.x++;
-            mm.d = _e;
+            mm_pose.x++;
+            mm_pose.curr_direction = _e;
             val++;
         break;
         case KEY_LEFT: 
-            mm.x--;
-            mm.d = _w;
+            mm_pose.x--;
+            mm_pose.curr_direction = _w;
             val++;
         break;
         case KEY_DOWN: 
-            mm.y++;
-            mm.d = _s;
+            mm_pose.y++;
+            mm_pose.curr_direction = _s;
             val++;
         break;
         case ERR:
         break;
         }
 
-        maze.cells[mm.x][mm.y].value = val;
-        getcenter(mm.x,mm.y,&mm.mx,&mm.my);
-        s = getsym(mm.d);
-        mvprintw(mm.my,mm.mx-1,&s);
+        maze.cells[mm_pose.x][mm_pose.y].value = val;
+        getcenter(mm_pose.x,mm_pose.y,&mm_pose.mx,&mm_pose.my);
+        s = getsym(mm_pose.curr_direction);
+        mvprintw(mm_pose.my,mm_pose.mx-1,&s);
 #endif
 
         
