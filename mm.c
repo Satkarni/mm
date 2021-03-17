@@ -7,7 +7,7 @@
 #include <string.h>
 
 // Maze file
-#include "yama2002.c"
+#include "yama2002.c" // NOLINT(bugprone-suspicious-include)
 
 // Micromouse struct and constants definitions
 #include "mm.h"
