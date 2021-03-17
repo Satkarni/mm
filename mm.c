@@ -416,8 +416,6 @@ void make_pose_update(const dir direction) {
 }
 
 void get_direction_input(const int c) {
-  int new_x;
-  int new_y;
   switch (c) {
     case KEY_UP:
       make_pose_update(_n);
