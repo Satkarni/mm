@@ -143,7 +143,7 @@ void draw_maze() {
       draw_cell_rectangle(3, i, j, get_walls(i, j));
       int x, y;
       get_center(i, j, &x, &y);
-      mvprintw(y, x, "%curr_direction", maze.cells[i][j].value);
+      mvprintw(y, x, "%d", maze.cells[i][j].value);
     }
   }
 }
