@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdbool.h>
+#include <string.h>
 
 // Maze file
 #include "yama2002.c"
@@ -39,6 +41,14 @@ char get_mouse_symbol(dir d) {
       break;
   }
   return c;
+}
+
+int max(int a, int b) {
+  return (a > b) ? a : b;
+}
+
+int min(int a, int b) {
+  return (a < b) ? a : b;
 }
 
 /* Draw the rectangle for the current cell as the micromouse discovers it */
@@ -106,7 +116,7 @@ short discover_walls(int x, int y) {
   return w;
 }
 
-// get current wall data
+// Get wall data from maz file
 // maze will be initially empty, as mouse searches through the maze
 // wall data will be updated
 short get_walls(int x, int y) {
@@ -274,7 +284,7 @@ int q_isempty() {
 
 void add_q(struct cell *p) {
   arr[cq.w] = p;
-  mvprintw(45, 0, "add x,y %curr_direction,%curr_direction", p->x, p->y);
+  mvprintw(45, 0, "add x,y %d,%d", p->x, p->y);
   cq.w = (cq.w + 1) % (MAZE_SIZE * MAZE_SIZE);
   cq.count++;
 }
@@ -294,7 +304,7 @@ void pop_q() {
 }
 
 void q_status() {
-  mvprintw(41, 0, "c %curr_direction, r %curr_direction, w %curr_direction\n", cq.count, cq.r, cq.w);
+  mvprintw(41, 0, "c %d, r %d, w %d\n", cq.count, cq.r, cq.w);
 }
 
 void reset_q() {
@@ -314,7 +324,7 @@ void floodfill(int dx, int dy, int sx, int sy) {
     // get one cell from q to analyze its nbrs
     struct cell *tmp = peek_q();
     if (!tmp) {
-      mvprintw(43, 0, "cx %curr_direction,cy %curr_direction, Aborting...", cx, cy);
+      mvprintw(43, 0, "cx %d,cy %d, Aborting...", cx, cy);
       sleep(10);
       break;
     } else {
@@ -352,6 +362,74 @@ void floodfill(int dx, int dy, int sx, int sy) {
   reset_q();
 }
 
+int put_in_bounds(int val, int min_val, int max_val) {
+  val = max(val, min_val);
+  val = min(val, max_val);
+  return val;
+}
+
+bool is_move_legal(dir direction, int x, int y) {
+  int is_wall_present = 1;
+
+  switch (direction) {
+    case _n:
+      is_wall_present = maze.cells[x][y].wbm & N;
+      break;
+    case _e:
+      is_wall_present = maze.cells[x][y].wbm & E;
+      //mvprintw(40, 0, "is_wall_present: %d", maze.cells[x][y].wbm);
+      break;
+    case _s:
+      is_wall_present = maze.cells[x][y].wbm & S;
+      break;
+    case _w:
+      is_wall_present = maze.cells[x][y].wbm & W;
+      break;
+  }
+  return (is_wall_present == 0) ? true : false;
+}
+
+void get_direction_input(int c) {
+  int new_x;
+  int new_y;
+  switch (c) {
+    case KEY_UP:
+      if (is_move_legal(_n, mm_pose.x, mm_pose.y)) {
+        new_y = mm_pose.y - 1;
+        new_y = put_in_bounds(new_y, 0, MAZE_SIZE - 1);
+        mm_pose.y = new_y;
+        mm_pose.curr_direction = _n;
+      }
+      break;
+    case KEY_RIGHT:
+      if (is_move_legal(_e, mm_pose.x, mm_pose.y)) {
+        new_x = mm_pose.x + 1;
+        new_x = put_in_bounds(new_x, 0, MAZE_SIZE - 1);
+        mm_pose.x = new_x;
+        mm_pose.curr_direction = _e;
+      }
+      break;
+    case KEY_LEFT:
+      if (is_move_legal(_w, mm_pose.x, mm_pose.y)) {
+        new_x = mm_pose.x - 1;
+        new_x = put_in_bounds(new_x, 0, MAZE_SIZE - 1);
+        mm_pose.x = new_x;
+        mm_pose.curr_direction = _w;
+      }
+      break;
+    case KEY_DOWN:
+      if (is_move_legal(_s, mm_pose.x, mm_pose.y)) {
+        new_y = mm_pose.y + 1;
+        new_y = put_in_bounds(new_y, 0, MAZE_SIZE - 1);
+        mm_pose.y = new_y;
+        mm_pose.curr_direction = _s;
+      }
+      break;
+    default:
+      break;
+  }
+}
+
 int main(int argc, char *argv[]) {
 
   initscr();
@@ -361,10 +439,12 @@ int main(int argc, char *argv[]) {
   scrollok(stdscr, TRUE);
   noecho();
   getmaxyx(stdscr, max_y, max_x);
+  printf("%d, %d", max_x, max_y);
   curs_set(FALSE);
 
   srand(time(NULL));
 
+  // Initialization of maze
   for (int i = 0; i < MAZE_SIZE; i++) {
     for (int j = 0; j < MAZE_SIZE; j++) {
       maze.cells[i][j].x = i;
@@ -376,49 +456,30 @@ int main(int argc, char *argv[]) {
 
   int f_flood = 0;
   clear();
+
   draw_maze();
   draw_maze_actual();
+
   while (1) {
     clear();
-
-    int c = getch();
-
-    switch (c) {
-      case KEY_UP:
-        mm_pose.y--;
-        mm_pose.curr_direction = _n;
-        f_flood = 1;
-        break;
-      case KEY_RIGHT:
-        mm_pose.x++;
-        mm_pose.curr_direction = _e;
-        f_flood = 1;
-        break;
-      case KEY_LEFT:
-        mm_pose.x--;
-        mm_pose.curr_direction = _w;
-        f_flood = 1;
-        break;
-      case KEY_DOWN:
-        mm_pose.y++;
-        mm_pose.curr_direction = _s;
-        f_flood = 1;
-        break;
-      case ERR:
-        break;
-    }
+    int f_flood = 1;
 
     short newwall = discover_walls(mm_pose.x, mm_pose.y);
     set_walls(mm_pose.x, mm_pose.y, newwall);
-    if (f_flood) {
-      for (int i = 0; i < MAZE_SIZE; i++) {
-        for (int j = 0; j < MAZE_SIZE; j++) {
-          maze.cells[i][j].value = 255;
-        }
-      }
-      floodfill(mm_pose.x, mm_pose.y, 8, 8);
-      f_flood = 0;
-    }
+
+    int c = getch();
+    // Get manual user movement in maze
+    get_direction_input(c);
+
+//        if(f_flood) {
+//               for(int i =0 ;i<SZ;i++){
+//                    for(int j=0;j<SZ;j++){
+//                        maze.cells[i][j].value = 255;
+//                    }
+//                }
+//            floodfill(mm.x,mm.y,8,8);
+//            f_flood = 0;
+//        }
 
 
     draw_maze();
@@ -427,14 +488,13 @@ int main(int argc, char *argv[]) {
     s = get_mouse_symbol(mm_pose.curr_direction);
     mvprintw(mm_pose.my, mm_pose.mx, &s);
 
-    mvprintw(40, 0, "Status: ");
-    mvprintw(40, 10, "x: %curr_direction, y: %curr_direction", mm_pose.x, mm_pose.y);
-    q_status();
+    //mvprintw(40,0,"Status: ");
+    //mvprintw(40,10,"x: %d, y: %d",mm.x,mm.y);
+    //q_status();
 
     refresh();
     usleep(DELAY_MILLIS);
   }
-
 
   endwin(); // Restore normal terminal behavior
 
