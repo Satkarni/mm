@@ -187,9 +187,9 @@ int check_if_nbr_open(struct cell *c, dir nbr_dir) {
   return 0;
 }
 
-// returns pointer to valid and open nbr
+// Returns pointer to valid and open nbr
 struct cell *get_nbr(dir d, struct cell *p) {
-  int isvalid = 0, isopen = 0;
+  int isvalid = 0, is_open = 0;
   int nx, ny;
   if (d == _n) {
     nx = p->x;
@@ -208,20 +208,20 @@ struct cell *get_nbr(dir d, struct cell *p) {
     ny = p->y;
   }
   isvalid = check_coord_valid(nx, ny);
-  isopen = check_if_nbr_open(p, d);
-  if (isvalid && isopen) {
+  is_open = check_if_nbr_open(p, d);
+  if (isvalid && is_open) {
     return &maze.cells[nx][ny];
   }
   return NULL;
 }
 
-// gets nbrs of c and fills list with them
-// returns number of open and valid nbrs
+// Gets nbrs of c and fills list with them
+// Returns number of open and valid nbrs
 int get_nbrs(struct cell **list, struct cell *c) {
   int i = 0;
   if (list == NULL || c == NULL) return -1;
 
-  // find valid nbrs of c
+  // Find valid nbrs of c
   int nbrx, nbry;
   for (dir nbdir = _n; nbdir <= _s; nbdir++) {
     switch (nbdir) {
@@ -247,14 +247,14 @@ int get_nbrs(struct cell **list, struct cell *c) {
     int isopen = check_if_nbr_open(c, nbdir);
 
     if (isvalid && isopen) {
-      // add to nbr list
+      // Add to nbr list
       list[i++] = &maze.cells[nbrx][nbry];
     }
   }
   return i;
 }
 
-// sort nbr list based on value
+// Sort nbr list based on value
 void sort_nbrs(struct cell **list, int num) {
   for (int i = 0; i < num - 1; i++) {
     for (int j = 0; j < num - 1 - i; j++) {
@@ -267,7 +267,7 @@ void sort_nbrs(struct cell **list, int num) {
   }
 }
 
-// container for cell pointer queue
+// Container for cell pointer queue
 struct cell *arr[MAZE_SIZE * MAZE_SIZE];
 
 struct cq {
@@ -389,41 +389,45 @@ bool is_move_legal(dir direction, int x, int y) {
   return (is_wall_present == 0) ? true : false;
 }
 
-void get_direction_input(int c) {
-  int new_x;
-  int new_y;
+void make_pose_update(const dir direction) {
+  int new_x = mm_pose.x;
+  int new_y = mm_pose.y;
+
+  if (is_move_legal(direction, mm_pose.x, mm_pose.y)) {
+    switch (direction) {
+      case _n:
+        new_y = put_in_bounds(new_y - 1, 0, MAZE_SIZE - 1);
+        break;
+      case _e:
+        new_x = put_in_bounds(new_x + 1, 0, MAZE_SIZE - 1);
+        break;
+      case _w:
+        new_x = put_in_bounds(new_x - 1, 0, MAZE_SIZE - 1);
+        break;
+        // _s
+      default:
+        new_y = put_in_bounds(new_y + 1, 0, MAZE_SIZE - 1);
+        break;
+    }
+    mm_pose.x = new_x;
+    mm_pose.y = new_y;
+    mm_pose.curr_direction = direction;
+  }
+}
+
+void get_direction_input(const int c) {
   switch (c) {
     case KEY_UP:
-      if (is_move_legal(_n, mm_pose.x, mm_pose.y)) {
-        new_y = mm_pose.y - 1;
-        new_y = put_in_bounds(new_y, 0, MAZE_SIZE - 1);
-        mm_pose.y = new_y;
-        mm_pose.curr_direction = _n;
-      }
+      make_pose_update(_n);
       break;
     case KEY_RIGHT:
-      if (is_move_legal(_e, mm_pose.x, mm_pose.y)) {
-        new_x = mm_pose.x + 1;
-        new_x = put_in_bounds(new_x, 0, MAZE_SIZE - 1);
-        mm_pose.x = new_x;
-        mm_pose.curr_direction = _e;
-      }
+      make_pose_update(_e);
       break;
     case KEY_LEFT:
-      if (is_move_legal(_w, mm_pose.x, mm_pose.y)) {
-        new_x = mm_pose.x - 1;
-        new_x = put_in_bounds(new_x, 0, MAZE_SIZE - 1);
-        mm_pose.x = new_x;
-        mm_pose.curr_direction = _w;
-      }
+      make_pose_update(_w);
       break;
     case KEY_DOWN:
-      if (is_move_legal(_s, mm_pose.x, mm_pose.y)) {
-        new_y = mm_pose.y + 1;
-        new_y = put_in_bounds(new_y, 0, MAZE_SIZE - 1);
-        mm_pose.y = new_y;
-        mm_pose.curr_direction = _s;
-      }
+      make_pose_update(_s);
       break;
     default:
       break;
