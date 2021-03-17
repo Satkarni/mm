@@ -499,39 +499,3 @@ int main(int argc, char *argv[]) {
   endwin(); // Restore normal terminal behavior
 
 }
-
-#if 0
-int c = getch();
-
-        switch(c){
-        case KEY_UP: 
-            mm_pose.y--;
-            mm_pose.curr_direction = _n;
-            val++;
-        break;  
-        case KEY_RIGHT: 
-            mm_pose.x++;
-            mm_pose.curr_direction = _e;
-            val++;
-        break;
-        case KEY_LEFT: 
-            mm_pose.x--;
-            mm_pose.curr_direction = _w;
-            val++;
-        break;
-        case KEY_DOWN: 
-            mm_pose.y++;
-            mm_pose.curr_direction = _s;
-            val++;
-        break;
-        case ERR:
-        break;
-        }
-
-        maze.cells[mm_pose.x][mm_pose.y].value = val;
-        getcenter(mm_pose.x,mm_pose.y,&mm_pose.mx,&mm_pose.my);
-        s = getsym(mm_pose.curr_direction);
-        mvprintw(mm_pose.my,mm_pose.mx-1,&s);
-#endif
-
-        
