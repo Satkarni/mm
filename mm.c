@@ -187,9 +187,9 @@ int check_if_nbr_open(struct cell *c, dir nbr_dir) {
   return 0;
 }
 
-// returns pointer to valid and open nbr
+// Returns pointer to valid and open nbr
 struct cell *get_nbr(dir d, struct cell *p) {
-  int isvalid = 0, isopen = 0;
+  int isvalid = 0, is_open = 0;
   int nx, ny;
   if (d == _n) {
     nx = p->x;
@@ -208,20 +208,20 @@ struct cell *get_nbr(dir d, struct cell *p) {
     ny = p->y;
   }
   isvalid = check_coord_valid(nx, ny);
-  isopen = check_if_nbr_open(p, d);
-  if (isvalid && isopen) {
+  is_open = check_if_nbr_open(p, d);
+  if (isvalid && is_open) {
     return &maze.cells[nx][ny];
   }
   return NULL;
 }
 
-// gets nbrs of c and fills list with them
-// returns number of open and valid nbrs
+// Gets nbrs of c and fills list with them
+// Returns number of open and valid nbrs
 int get_nbrs(struct cell **list, struct cell *c) {
   int i = 0;
   if (list == NULL || c == NULL) return -1;
 
-  // find valid nbrs of c
+  // Find valid nbrs of c
   int nbrx, nbry;
   for (dir nbdir = _n; nbdir <= _s; nbdir++) {
     switch (nbdir) {
@@ -247,14 +247,14 @@ int get_nbrs(struct cell **list, struct cell *c) {
     int isopen = check_if_nbr_open(c, nbdir);
 
     if (isvalid && isopen) {
-      // add to nbr list
+      // Add to nbr list
       list[i++] = &maze.cells[nbrx][nbry];
     }
   }
   return i;
 }
 
-// sort nbr list based on value
+// Sort nbr list based on value
 void sort_nbrs(struct cell **list, int num) {
   for (int i = 0; i < num - 1; i++) {
     for (int j = 0; j < num - 1 - i; j++) {
@@ -267,7 +267,7 @@ void sort_nbrs(struct cell **list, int num) {
   }
 }
 
-// container for cell pointer queue
+// Container for cell pointer queue
 struct cell *arr[MAZE_SIZE * MAZE_SIZE];
 
 struct cq {
