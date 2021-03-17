@@ -404,7 +404,7 @@ void make_pose_update(const dir direction) {
       case _w:
         new_x = put_in_bounds(new_x - 1, 0, MAZE_SIZE - 1);
         break;
-      // _s
+        // _s
       default:
         new_y = put_in_bounds(new_y + 1, 0, MAZE_SIZE - 1);
         break;
