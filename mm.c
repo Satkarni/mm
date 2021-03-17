@@ -13,6 +13,7 @@
 #include "mm.h"
 
 #define DELAY_MILLIS  100000
+#define KEY_ESC       27
 
 int max_x, max_y;
 int cell_width = 5, cell_height = 2;
@@ -375,6 +376,60 @@ void floodfill(int dx, int dy, int sx, int sy) {
   reset_q();
 }
 
+void bfs(int dst_x, int dst_y, int src_x, int src_y) {
+  // First check validity of input args
+  if (!check_coord_valid(dst_x, dst_y) || !check_coord_valid(src_x, src_y)) {
+    return;
+  }
+
+  // Initialize queue w/ src cell
+  reset_q();
+
+  // Add starting cell to queue
+  struct cell *p = &(maze.cells[src_x][src_y]);
+  p->value = 0;
+  add_q(p);
+
+  int curr_sz;
+  int dist = 0;
+  while (!q_isempty()) {
+    curr_sz = cq.count;
+
+    for (int i = 0; i < curr_sz; i++) {
+      // Dequeue a cell
+      struct cell* curr = peek_q();
+      pop_q();
+
+      // Visit curr and mark its distance
+      curr->visited = true;
+      curr->value = dist;
+
+      // Get all possible neighbors
+      struct cell *nbr_n = get_nbr(_n, curr);
+      struct cell *nbr_e = get_nbr(_e, curr);
+      struct cell *nbr_s = get_nbr(_s, curr);
+      struct cell *nbr_w = get_nbr(_w, curr);
+
+      if (nbr_n != NULL && !nbr_n->visited && !is_processed(nbr_n->x, nbr_n->y)) {
+        add_q(nbr_n);
+      }
+      if (nbr_e != NULL && !nbr_e->visited && !is_processed(nbr_e->x, nbr_e->y)) {
+        add_q(nbr_e);
+      }
+      if (nbr_s != NULL && !nbr_s->visited && !is_processed(nbr_s->x, nbr_s->y)) {
+        add_q(nbr_s);
+      }
+      if (nbr_w != NULL && !nbr_w->visited && !is_processed(nbr_w->x, nbr_w->y)) {
+        add_q(nbr_w);
+      }
+    }
+    dist += 1;
+  }
+
+  // Clean up after BFS is done
+  reset_q();
+}
+
 int put_in_bounds(int val, int min_val, int max_val) {
   val = max(val, min_val);
   val = min(val, max_val);
@@ -486,6 +541,10 @@ int main(int argc, char *argv[]) {
     set_walls(mm_pose.x, mm_pose.y, newwall);
 
     int c = getch();
+
+    // Escape key = 27
+    if (c == KEY_ESC) break;
+
     // Get manual user movement in maze
     get_direction_input(c);
 
@@ -498,7 +557,8 @@ int main(int argc, char *argv[]) {
       }
     }
 
-    floodfill(mm_pose.x, mm_pose.y, 8, 8);
+    bfs(mm_pose.x, mm_pose.y, 8, 8);
+    // floodfill(mm_pose.x, mm_pose.y, 8, 8);
 
 //        if(f_flood) {
 //               for(int i =0 ;i<SZ;i++){
