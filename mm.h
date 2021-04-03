@@ -41,6 +41,7 @@ struct cell {
   int x;
   int y;
   short wbm;    // Wall bit-map
+  bool visited; // Used in flood fill
   int value;
 };
 
