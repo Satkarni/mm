@@ -130,14 +130,36 @@ short get_walls(int x, int y) {
   // x,y (0,15)  => 0
   // x,y (15,0)  => 255
   // x,y (15,15) => 240
-  //w = cur_maze[MAZE_SIZE - 1 + MAZE_SIZE * x - y];
   w = maze.cells[x][y].wbm;
   return w;
 }
 
+// Returns 1 if cell is valid
+int check_coord_valid(int x, int y) {
+  if (x < 0 || x >= MAZE_SIZE || y < 0 || y >= MAZE_SIZE)
+    return 0;
+  else
+    return 1;
+}
+
 void set_walls(int x, int y, short walls) {
   maze.cells[x][y].wbm = walls;
-  cur_maze[MAZE_SIZE - 1 + MAZE_SIZE * x - y] = walls;
+
+  // Check for symmetrical wall updates to neighboring cells!
+  // For example: updating my East wall info also means updating
+  // the neighbor to my left's West wall info
+  if ((walls & N) && check_coord_valid(x, y - 1)) {
+    maze.cells[x][y - 1].wbm = (maze.cells[x][y - 1].wbm | S);
+  }
+  if ((walls & E) && check_coord_valid(x + 1, y)) {
+    maze.cells[x + 1][y].wbm = (maze.cells[x + 1][y].wbm | W);
+  }
+  if ((walls & S) && check_coord_valid(x, y + 1)) {
+    maze.cells[x][y + 1].wbm = (maze.cells[x][y + 1].wbm | N);
+  }
+  if ((walls & W) && check_coord_valid(x - 1, y)) {
+    maze.cells[x - 1][y].wbm = (maze.cells[x - 1][y].wbm | E);
+  }
 }
 
 void draw_maze() {
@@ -160,14 +182,6 @@ void draw_maze_actual() {
       //mvprintw(y,x,"%curr_direction",maze.cells[i][j].value);
     }
   }
-}
-
-// Returns 1 if cell is valid
-int check_coord_valid(int x, int y) {
-  if (x < 0 || x >= MAZE_SIZE || y < 0 || y >= MAZE_SIZE)
-    return 0;
-  else
-    return 1;
 }
 
 // Check if the cell with nx and ny is open to cell c
@@ -300,7 +314,6 @@ int q_isempty() {
 
 void add_q(struct cell *p) {
   arr[cq.w] = p;
-  mvprintw(45, 0, "add x,y %d,%d", p->x, p->y);
   cq.w = (cq.w + 1) % (MAZE_SIZE * MAZE_SIZE);
   cq.count++;
 }
@@ -609,6 +622,7 @@ int main(int argc, char *argv[]) {
   while (1) {
     clear();
 
+    // Simulate reading from a real sensor
     short newwall = discover_walls(mm_pose.x, mm_pose.y);
     set_walls(mm_pose.x, mm_pose.y, newwall);
 
