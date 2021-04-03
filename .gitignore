@@ -3,3 +3,5 @@
 *.py
 m
 .DS_Store
+tags
+cscope.out

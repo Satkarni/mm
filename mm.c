@@ -1,6 +1,7 @@
 // demo.c
 #include <ncurses.h>
 #include <unistd.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
@@ -8,8 +9,8 @@
 // maze file
 #include "yama2002.c"
 
-#define DELAY   100000    // 1ms tick
-#define SZ  16 
+#define DELAY   20000    // 1ms tick
+#define SZ  4 
 
 #define N  (1<<0) 
 #define E  (1<<1) 
@@ -18,7 +19,7 @@
 
 int maxx,maxy;
 int cellw=5,cellh=2;
-
+FILE *fp  = NULL;
 
 // north wall only -> 0x01
 // east wall only  -> 0x02
@@ -367,7 +368,7 @@ void floodfill(int dx,int dy,int sx,int sy)
         cx = tmp->x;
         cy = tmp->y;
         //tmp->visited = 1;
-
+        fprintf(fp, "\ncx %d, cy %d, val %d: ", cx, cy, tmp->value); 
         // get valid open nbrs
         struct cell *nbr_n = get_nbr(_n,tmp);
         struct cell *nbr_e = get_nbr(_e,tmp);
@@ -377,20 +378,25 @@ void floodfill(int dx,int dy,int sx,int sy)
         int newval = tmp->value + 1;
         if(nbr_n != NULL && nbr_n->value > newval){
             nbr_n->value = newval;
+            fprintf(fp, "N(%d,%d,%d), ", nbr_n->x, nbr_n->y, nbr_n->value); 
             add_q(nbr_n);
         }
         if(nbr_e != NULL && nbr_e->value > newval){
             nbr_e->value = newval;
+            fprintf(fp, "E(%d,%d,%d), ", nbr_e->x, nbr_e->y, nbr_e->value); 
             add_q(nbr_e);
         }
         if(nbr_s != NULL && nbr_s->value > newval){
             nbr_s->value = newval;
+            fprintf(fp, "S(%d,%d,%d), ", nbr_s->x, nbr_s->y, nbr_s->value); 
             add_q(nbr_s);
         }
         if(nbr_w != NULL && nbr_w->value > newval){
             nbr_w->value = newval;
+            fprintf(fp, "W(%d,%d,%d) ", nbr_w->x, nbr_w->y, nbr_w->value); 
             add_q(nbr_w);
         }
+        fprintf(fp,"\n");
     }
 
     reset_q();
@@ -408,6 +414,7 @@ int main(int argc, char *argv[]) {
  	curs_set(FALSE);
 
  	srand(time(NULL));
+    fp = fopen("log", "w");    
 
     for(int i =0 ;i<SZ;i++){
         for(int j=0;j<SZ;j++){
