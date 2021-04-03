@@ -205,8 +205,7 @@ int check_if_nbr_open(struct cell *c, dir nbr_dir) {
 }
 
 // Container for cell pointer queue
-//struct cell *arr[MAZE_SIZE * MAZE_SIZE];
-struct cell *arr[1000];
+struct cell *arr[MAZE_SIZE * MAZE_SIZE];
 
 struct cq {
   int r;
@@ -630,7 +629,7 @@ dir get_nbr_relative_dir(struct cell *nbr, struct cell *c)
 
 int auto_move()
 {
-    sleep(1);
+    usleep(200000);
     // get reference of current cell
     struct cell *c = &maze.cells[mm_pose.x][mm_pose.y];
     fprintf(fp, "curr %d,%d: ", c->x,c->y);
@@ -665,10 +664,10 @@ int auto_move()
     || c->x == 7 && c->y == 8
     || c->x == 8 && c->y == 7 
     || c->x == 8 && c->y == 8 ){
+        while(1);
         return -1;
     }
 
-    getch();
     return 0;
 }
 
