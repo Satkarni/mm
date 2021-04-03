@@ -365,6 +365,7 @@ void floodfill(int dx, int dy, int sx, int sy) {
 
 void floodfill1(int dx,int dy,int sx,int sy)
 {
+    FILE *fp;
     // add sx,sy to queue of cell pointers
     struct cell *p = &(maze.cells[sx][sy]);
     p->value = 0;
