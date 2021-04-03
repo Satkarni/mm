@@ -205,7 +205,8 @@ int check_if_nbr_open(struct cell *c, dir nbr_dir) {
 }
 
 // Container for cell pointer queue
-struct cell *arr[MAZE_SIZE * MAZE_SIZE];
+//struct cell *arr[MAZE_SIZE * MAZE_SIZE];
+struct cell *arr[1000];
 
 struct cq {
   int r;
@@ -258,7 +259,7 @@ struct cell *get_nbr(dir d, struct cell *p) {
 
 // Gets nbrs of c and fills list with them
 // Returns number of open and valid nbrs
-int get_nbrs(struct cell **list, struct cell *c) {
+int get_nbrs(struct cell *list[], struct cell *c) {
   int i = 0;
   if (list == NULL || c == NULL) return -1;
 
@@ -286,7 +287,6 @@ int get_nbrs(struct cell **list, struct cell *c) {
 
     int isvalid = check_coord_valid(nbrx, nbry);
     int isopen = check_if_nbr_open(c, nbdir);
-
     if (isvalid && isopen) {
       // Add to nbr list
       list[i++] = &maze.cells[nbrx][nbry];
@@ -296,10 +296,12 @@ int get_nbrs(struct cell **list, struct cell *c) {
 }
 
 // Sort nbr list based on value
-void sort_nbrs(struct cell **list, int num) {
+void sort_nbrs(struct cell *list[], int num) {
   for (int i = 0; i < num - 1; i++) {
     for (int j = 0; j < num - 1 - i; j++) {
-      if ((list[j])->value > (list[j + 1])->value) {
+      if ((list[j])->value > (list[j + 1])->value
+        || (list[j]->value == list[j+1]->value && list[j]->phy_visited == 1 && list[j+1]->phy_visited == 0) 
+                                                    ) {
         struct cell *tmp = list[j];
         list[j] = list[j + 1];
         list[j + 1] = tmp;
@@ -464,9 +466,10 @@ void bfs(int dst_x, int dst_y, int src_x, int src_y) {
 
   int curr_sz;
   int dist = 0;
-  fprintf(fp,"%s\n","q start*****************************************");
+  //fprintf(fp,"%s\n","q start*****************************************");
   while (!q_isempty()) {
     curr_sz = cq.count;
+    //fprintf(fp,"q count %d\n",curr_sz);
     if(curr_sz == 0) break;
     for (int i = 0; i < curr_sz; i++) {
       // Dequeue a cell
@@ -476,7 +479,7 @@ void bfs(int dst_x, int dst_y, int src_x, int src_y) {
       // Visit curr and mark its distance
       curr->visited = true;
       curr->value = dist;
-      fprintf(fp, "curr %d,%d: ", curr->x, curr->y); 
+      //fprintf(fp, "\ncurr %d,%d: ", curr->x, curr->y); 
       // Get all possible neighbors
       struct cell *nbr_n = get_nbr(_n, curr);
       struct cell *nbr_e = get_nbr(_e, curr);
@@ -485,25 +488,25 @@ void bfs(int dst_x, int dst_y, int src_x, int src_y) {
 
       if (nbr_n != NULL && !nbr_n->visited && !is_processed(nbr_n->x, nbr_n->y)) {
         add_q(nbr_n);
-        fprintf(fp, "add %d,%d ", nbr_n->x, nbr_n->y);
+        //fprintf(fp, "add %d,%d ", nbr_n->x, nbr_n->y);
       }
       if (nbr_e != NULL && !nbr_e->visited && !is_processed(nbr_e->x, nbr_e->y)) {
         add_q(nbr_e);
-        fprintf(fp, "add %d,%d ", nbr_e->x, nbr_e->y);
+        //fprintf(fp, "add %d,%d ", nbr_e->x, nbr_e->y);
       }
       if (nbr_s != NULL && !nbr_s->visited && !is_processed(nbr_s->x, nbr_s->y)) {
         add_q(nbr_s);
-        fprintf(fp, "add %d,%d ", nbr_s->x, nbr_s->y);
+        //fprintf(fp, "add %d,%d ", nbr_s->x, nbr_s->y);
       }
       if (nbr_w != NULL && !nbr_w->visited && !is_processed(nbr_w->x, nbr_w->y)) {
         add_q(nbr_w);
-        fprintf(fp, "add %d,%d ", nbr_w->x, nbr_w->y);
+        //fprintf(fp, "add %d,%d ", nbr_w->x, nbr_w->y);
       }
-      fprintf(fp,"\n");
+      fflush(fp);
     }
     dist += 1;
   }
-  fprintf(fp,"%s\n","q end**************************************"); 
+  //fprintf(fp,"\n%s\n","q end**************************************"); 
   // Clean up after BFS is done
   reset_q();
 }
@@ -585,6 +588,90 @@ int get_direction_input(const int c) {
   return rc;
 }
 
+void reset_maze()
+{
+    // Reset the values and visited status
+    // to redraw the flood values
+    for (int i = 0; i < MAZE_SIZE; i++) {
+        for (int j = 0; j < MAZE_SIZE; j++) {
+            maze.cells[i][j].value = 255;
+            maze.cells[i][j].visited = false;
+        }
+    }
+}
+
+int manual_move()
+{
+    int c = getch();
+
+    // Escape key = 27
+    if (c == KEY_ESC) return -1;
+
+    // Get manual user movement in maze
+    int f_flood = get_direction_input(c);
+
+    if(f_flood) {
+        reset_maze();
+        bfs(mm_pose.x, mm_pose.y, 8, 8);
+    }
+    return 0;
+}
+
+dir get_nbr_relative_dir(struct cell *nbr, struct cell *c)
+{
+   dir d;
+   if(nbr->x == c->x && nbr->y == c->y - 1) d = _n;
+   else if(nbr->x == c->x + 1 && nbr->y == c->y) d = _e;
+   else if(nbr->x == c->x - 1 && nbr->y == c->y) d = _w;
+   else if(nbr->x == c->x && nbr->y == c->y + 1) d = _s;
+
+   return d;
+}
+
+int auto_move()
+{
+    sleep(1);
+    // get reference of current cell
+    struct cell *c = &maze.cells[mm_pose.x][mm_pose.y];
+    fprintf(fp, "curr %d,%d: ", c->x,c->y);
+    c->phy_visited = 1;
+
+    reset_maze(); 
+    bfs(mm_pose.x, mm_pose.y, 8, 8);
+
+    // get nbrs, move to non visited, min val open nbr
+    struct cell *nbrs[4];
+    int nbr_cnt = get_nbrs(nbrs, c);  
+
+    fprintf(fp,",nbr_cnt %d", nbr_cnt); 
+    for(int k=0;k<nbr_cnt;k++){ fprintf(fp,",(%d,%d)",nbrs[k]->x,nbrs[k]->y); }
+    fprintf(fp,"\n");
+
+    // sort nbr list by value, phy_visited etc
+    sort_nbrs(nbrs, nbr_cnt);
+    for(int j=0; j<nbr_cnt; j++){
+        fprintf(fp, "%d,%d,%d ", nbrs[j]->x, nbrs[j]->y, nbrs[j]->value); 
+    }
+    fprintf(fp, "\n");
+
+    // get relative direction of min nbr based on its x,y
+    dir d = get_nbr_relative_dir(nbrs[0], c);    
+
+    // move to min nbr
+    fprintf(fp, "curr %d,%d -> nxt %d,%d @ %d", c->x, c->y, nbrs[0]->x, nbrs[0]->y, d);
+    make_pose_update(d); 
+
+    if(c->x == 7 && c->y == 7 
+    || c->x == 7 && c->y == 8
+    || c->x == 8 && c->y == 7 
+    || c->x == 8 && c->y == 8 ){
+        return -1;
+    }
+
+    getch();
+    return 0;
+}
+
 int main(int argc, char *argv[]) {
 
   initscr();
@@ -594,10 +681,10 @@ int main(int argc, char *argv[]) {
   scrollok(stdscr, TRUE);
   noecho();
   getmaxyx(stdscr, max_y, max_x);
-  printf("%d, %d", max_x, max_y);
   curs_set(FALSE);
 
   srand(time(NULL));
+
 
   // Initialization of maze
   for (int i = 0; i < MAZE_SIZE; i++) {
@@ -611,53 +698,29 @@ int main(int argc, char *argv[]) {
   static char s;
 
   int f_flood = 0;
-  clear();
 
   draw_maze();
   draw_maze_actual();
 
   fp = fopen("log.txt","w");
-  fprintf(fp, "%s\n", "start");
-
+  time_t rawtime; 
+  struct tm *info;
+  char timebuf[80];
+  time(&rawtime);
+  info = localtime(&rawtime);
+  strftime(timebuf,80, "%Y-%m-%d_%I:%M:%p", info);
+  fprintf(fp, "%s %s\n", timebuf,"starting new***************************************");
   while (1) {
-    clear();
+    erase();
 
     // Simulate reading from a real sensor
     short newwall = discover_walls(mm_pose.x, mm_pose.y);
     set_walls(mm_pose.x, mm_pose.y, newwall);
-
-    int c = getch();
-
-    // Escape key = 27
-    if (c == KEY_ESC) break;
-
-    // Get manual user movement in maze
-    f_flood = get_direction_input(c);
-
-    if(f_flood) {
-        // Reset the values and visited status
-        // to redraw the flood values
-        for (int i = 0; i < MAZE_SIZE; i++) {
-            for (int j = 0; j < MAZE_SIZE; j++) {
-                maze.cells[i][j].value = 255;
-                maze.cells[i][j].visited = false;
-            }
-        }
-
-        bfs(mm_pose.x, mm_pose.y, 8, 8);
-    }
-    // floodfill(mm_pose.x, mm_pose.y, 8, 8);
-
-//        if(f_flood) {
-//               for(int i =0 ;i<SZ;i++){
-//                    for(int j=0;j<SZ;j++){
-//                        maze.cells[i][j].value = 255;
-//                    }
-//                }
-//            floodfill(mm.x,mm.y,8,8);
-//            f_flood = 0;
-//        }
-
+    
+    int ret = auto_move(); 
+    //int ret = manual_move();
+    if(ret == -1) break;
+     
 
     draw_maze();
     draw_maze_actual();
@@ -665,14 +728,10 @@ int main(int argc, char *argv[]) {
     s = get_mouse_symbol(mm_pose.curr_direction);
     mvprintw(mm_pose.my, mm_pose.mx, &s);
 
-    //mvprintw(40,0,"Status: ");
-    //mvprintw(40,10,"x: %d, y: %d",mm.x,mm.y);
-    //q_status();
-
     refresh();
     usleep(DELAY_MILLIS);
   }
-
+    getch();
   fclose(fp);
   endwin(); // Restore normal terminal behavior
 }

@@ -42,6 +42,7 @@ struct cell {
   int y;
   short wbm;    // Wall bit-map
   bool visited; // Used in flood fill
+  int phy_visited; // Has mouse physically visited this cell ?
   int value;
 };
 
