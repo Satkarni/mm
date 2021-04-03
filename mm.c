@@ -13,6 +13,7 @@
 #include "mm.h"
 
 #define DELAY_MILLIS  100000
+#define KEY_ESC       27
 
 int max_x, max_y;
 int cell_width = 5, cell_height = 2;
@@ -159,7 +160,7 @@ void draw_maze_actual() {
   }
 }
 
-// returns 1 if cell is valid
+// Returns 1 if cell is valid
 int check_coord_valid(int x, int y) {
   if (x < 0 || x >= MAZE_SIZE || y < 0 || y >= MAZE_SIZE)
     return 0;
@@ -167,8 +168,8 @@ int check_coord_valid(int x, int y) {
     return 1;
 }
 
-// check if the cell with nx and ny is open to cell c
-// returns 1 if nbr is open
+// Check if the cell with nx and ny is open to cell c
+// Returns 1 if nbr is open
 int check_if_nbr_open(struct cell *c, dir nbr_dir) {
   int walls = get_walls(c->x, c->y);
   if (nbr_dir == _n && !(walls & N)) {
@@ -185,6 +186,30 @@ int check_if_nbr_open(struct cell *c, dir nbr_dir) {
   }
 
   return 0;
+}
+
+// Container for cell pointer queue
+struct cell *arr[MAZE_SIZE * MAZE_SIZE];
+
+struct cq {
+  int r;
+  int w;
+  int count;
+};
+
+struct cq cq = {.r = 0, .w = 0, .count = 0};
+
+// TODO: Make more efficient later on w/ hashing
+bool is_processed(int nx, int ny) {
+  // If cell (nx, ny) is currently in the queue, skip
+  // processing it again
+  for (int i = 0; i < cq.count; i++) {
+    struct cell *in_queue = arr[i];
+    if (in_queue->x == nx && in_queue->y == ny) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // Returns pointer to valid and open nbr
@@ -266,17 +291,6 @@ void sort_nbrs(struct cell **list, int num) {
     }
   }
 }
-
-// Container for cell pointer queue
-struct cell *arr[MAZE_SIZE * MAZE_SIZE];
-
-struct cq {
-  int r;
-  int w;
-  int count;
-};
-
-struct cq cq = {.r = 0, .w = 0, .count = 0};
 
 int q_isempty() {
   return (cq.count == 0);
@@ -362,6 +376,60 @@ void floodfill(int dx, int dy, int sx, int sy) {
   reset_q();
 }
 
+void bfs(int dst_x, int dst_y, int src_x, int src_y) {
+  // First check validity of input args
+  if (!check_coord_valid(dst_x, dst_y) || !check_coord_valid(src_x, src_y)) {
+    return;
+  }
+
+  // Initialize queue w/ src cell
+  reset_q();
+
+  // Add starting cell to queue
+  struct cell *p = &(maze.cells[src_x][src_y]);
+  p->value = 0;
+  add_q(p);
+
+  int curr_sz;
+  int dist = 0;
+  while (!q_isempty()) {
+    curr_sz = cq.count;
+
+    for (int i = 0; i < curr_sz; i++) {
+      // Dequeue a cell
+      struct cell* curr = peek_q();
+      pop_q();
+
+      // Visit curr and mark its distance
+      curr->visited = true;
+      curr->value = dist;
+
+      // Get all possible neighbors
+      struct cell *nbr_n = get_nbr(_n, curr);
+      struct cell *nbr_e = get_nbr(_e, curr);
+      struct cell *nbr_s = get_nbr(_s, curr);
+      struct cell *nbr_w = get_nbr(_w, curr);
+
+      if (nbr_n != NULL && !nbr_n->visited && !is_processed(nbr_n->x, nbr_n->y)) {
+        add_q(nbr_n);
+      }
+      if (nbr_e != NULL && !nbr_e->visited && !is_processed(nbr_e->x, nbr_e->y)) {
+        add_q(nbr_e);
+      }
+      if (nbr_s != NULL && !nbr_s->visited && !is_processed(nbr_s->x, nbr_s->y)) {
+        add_q(nbr_s);
+      }
+      if (nbr_w != NULL && !nbr_w->visited && !is_processed(nbr_w->x, nbr_w->y)) {
+        add_q(nbr_w);
+      }
+    }
+    dist += 1;
+  }
+
+  // Clean up after BFS is done
+  reset_q();
+}
+
 int put_in_bounds(int val, int min_val, int max_val) {
   val = max(val, min_val);
   val = min(val, max_val);
@@ -377,12 +445,12 @@ bool is_move_legal(dir direction, int x, int y) {
       break;
     case _e:
       is_wall_present = maze.cells[x][y].wbm & E;
-      //mvprintw(40, 0, "is_wall_present: %d", maze.cells[x][y].wbm);
       break;
     case _s:
       is_wall_present = maze.cells[x][y].wbm & S;
       break;
-    case _w:
+    default:
+      // _w
       is_wall_present = maze.cells[x][y].wbm & W;
       break;
   }
@@ -454,6 +522,7 @@ int main(int argc, char *argv[]) {
       maze.cells[i][j].x = i;
       maze.cells[i][j].y = j;
       maze.cells[i][j].value = 255;
+      maze.cells[i][j].visited = false;
     }
   }
   static char s;
@@ -472,8 +541,24 @@ int main(int argc, char *argv[]) {
     set_walls(mm_pose.x, mm_pose.y, newwall);
 
     int c = getch();
+
+    // Escape key = 27
+    if (c == KEY_ESC) break;
+
     // Get manual user movement in maze
     get_direction_input(c);
+
+    // Reset the values and visited status
+    // to redraw the flood values
+    for (int i = 0; i < MAZE_SIZE; i++) {
+      for (int j = 0; j < MAZE_SIZE; j++) {
+        maze.cells[i][j].value = 255;
+        maze.cells[i][j].visited = false;
+      }
+    }
+
+    bfs(mm_pose.x, mm_pose.y, 8, 8);
+    // floodfill(mm_pose.x, mm_pose.y, 8, 8);
 
 //        if(f_flood) {
 //               for(int i =0 ;i<SZ;i++){
