@@ -394,117 +394,9 @@ void stack_status() {
 }
 
 void reset_stack() {
-  cstack.w = cstack.r = cstack.count = 0;
+   cstack.r = cstack.count = 0;
+   cstack.w = -1;
 }
-
-
-void floodfill(int dx, int dy, int sx, int sy) {
-  // add sx,sy to queue of cell pointers
-  struct cell *p = &(maze.cells[sx][sy]);
-  p->value = 0;
-  add_q(p);
-
-  int cx = sx, cy = sy;
-
-  while (!(cx == dx && cy == dy)) {
-
-    // get one cell from q to analyze its nbrs
-    struct cell *tmp = peek_q();
-    if (!tmp) {
-      mvprintw(43, 0, "cx %d,cy %d, Aborting...", cx, cy);
-      sleep(10);
-      break;
-    } else {
-      pop_q();    // delete from q if peek successful
-    }
-    cx = tmp->x;
-    cy = tmp->y;
-    //tmp->visited = 1;
-
-    // get valid open nbrs
-    struct cell *nbr_n = get_nbr(_n, tmp);
-    struct cell *nbr_e = get_nbr(_e, tmp);
-    struct cell *nbr_s = get_nbr(_s, tmp);
-    struct cell *nbr_w = get_nbr(_w, tmp);
-
-    int newval = tmp->value + 1;
-    if (nbr_n != NULL && nbr_n->value > newval) {
-      nbr_n->value = newval;
-      add_q(nbr_n);
-    }
-    if (nbr_e != NULL && nbr_e->value > newval) {
-      nbr_e->value = newval;
-      add_q(nbr_e);
-    }
-    if (nbr_s != NULL && nbr_s->value > newval) {
-      nbr_s->value = newval;
-      add_q(nbr_s);
-    }
-    if (nbr_w != NULL && nbr_w->value > newval) {
-      nbr_w->value = newval;
-      add_q(nbr_w);
-    }
-  }
-
-  reset_q();
-}
-#if 0
-void floodfill1(int dx,int dy,int sx,int sy)
-{
-    // add sx,sy to queue of cell pointers
-    struct cell *p = &(maze.cells[sx][sy]);
-    p->value = 0;
-    add_q(p);
-
-    int cx = sx,cy = sy;
-
-    while(!(cx == dx && cy == dy)){
-
-        // get one cell from q to analyze its nbrs
-        struct cell *tmp = peek_q();
-        if(!tmp){
-            mvprintw(43,0,"cx %d,cy %d, Aborting...",cx,cy);
-            sleep(10);
-            break;
-        }else{
-            pop_q();    // delete from q if peek successful
-        }
-        cx = tmp->x;
-        cy = tmp->y;
-        //tmp->visited = 1;
-        fprintf(fp, "\ncx %d, cy %d, val %d: ", cx, cy, tmp->value); 
-        // get valid open nbrs
-        struct cell *nbr_n = get_nbr(_n,tmp);
-        struct cell *nbr_e = get_nbr(_e,tmp);
-        struct cell *nbr_s = get_nbr(_s,tmp);
-        struct cell *nbr_w = get_nbr(_w,tmp);
-
-        int newval = tmp->value + 1;
-        if(nbr_n != NULL && nbr_n->value > newval){
-            nbr_n->value = newval;
-            fprintf(fp, "N(%d,%d,%d), ", nbr_n->x, nbr_n->y, nbr_n->value); 
-            add_q(nbr_n);
-        }
-        if(nbr_e != NULL && nbr_e->value > newval){
-            nbr_e->value = newval;
-            fprintf(fp, "E(%d,%d,%d), ", nbr_e->x, nbr_e->y, nbr_e->value); 
-            add_q(nbr_e);
-        }
-        if(nbr_s != NULL && nbr_s->value > newval){
-            nbr_s->value = newval;
-            fprintf(fp, "S(%d,%d,%d), ", nbr_s->x, nbr_s->y, nbr_s->value); 
-            add_q(nbr_s);
-        }
-        if(nbr_w != NULL && nbr_w->value > newval){
-            nbr_w->value = newval;
-            fprintf(fp, "W(%d,%d,%d) ", nbr_w->x, nbr_w->y, nbr_w->value); 
-            add_q(nbr_w);
-        }
-        fprintf(fp,"\n");
-
-    }
-}
-#endif
 
 void dfs(int dst_x, int dst_y, int src_x, int src_y) {
     // First check validity of input args
@@ -630,42 +522,124 @@ void bfs(int dst_x, int dst_y, int src_x, int src_y) {
   reset_q();
 }
 
+// Sort nbr list based on value
+void dijkstra_sort_nbrs(struct cell *list[], int num) {
+  for (int i = 0; i < num - 1; i++) {
+    for (int j = 0; j < num - 1 - i; j++) {
+      if ((list[j])->value > (list[j + 1])->value) {
+        struct cell *tmp = list[j];
+        list[j] = list[j + 1];
+        list[j + 1] = tmp;
+      }
+    }
+  }
+}
+
+void dijkstra(int dst_x, int dst_y, int src_x, int src_y) 
+{
+    // First check validity of input args
+    if (!check_coord_valid(dst_x, dst_y) || !check_coord_valid(src_x, src_y)) {
+        return;
+    }
+
+    reset_stack();
+
+    struct cell *c = &maze.cells[src_x][src_y];
+    c->value = 0;
+
+    // Add it to path
+    add_stack(c);
+
+    for(int i = 0; i < cstack.count; i++){
+        fprintf(fp,"count: %d\n", cstack.count);
+        struct cell *c = sarr[i];
+        if(c->visited == true) continue;
+        
+        fprintf(fp, "\ncurr %d,%d: ", c->x,c->y);
+        // Get all possible neighbors
+        struct cell *nbr_n = get_nbr(_n, c);
+        struct cell *nbr_e = get_nbr(_e, c);
+        struct cell *nbr_s = get_nbr(_s, c);
+        struct cell *nbr_w = get_nbr(_w, c);
+
+        struct cell *nbrs[4];
+        int nbr_cnt = 0;
+        if (nbr_n != NULL && !nbr_n->visited /*&& !is_processed(nbr_n->x, nbr_n->y)*/) {
+            if(nbr_n->value > c->value + 1){
+                nbr_n->value = c->value + 1;
+            }
+            nbrs[nbr_cnt++] = nbr_n;
+        }
+        if (nbr_e != NULL && !nbr_e->visited /*&& !is_processed(nbr_e->x, nbr_e->y)*/) {
+            if(nbr_e->value > c->value + 1){
+                nbr_e->value = c->value + 1;
+            }
+            nbrs[nbr_cnt++] = nbr_e;
+        }
+        if (nbr_s != NULL && !nbr_s->visited /*&& !is_processed(nbr_s->x, nbr_s->y)*/) {
+            if(nbr_s->value > c->value + 1){
+                nbr_s->value = c->value + 1;
+            }
+            nbrs[nbr_cnt++] = nbr_s;
+        }
+        if (nbr_w != NULL && !nbr_w->visited /*&& !is_processed(nbr_w->x, nbr_w->y)*/) {
+            if(nbr_w->value > c->value + 1){
+                nbr_w->value = c->value + 1;
+            }
+            nbrs[nbr_cnt++] = nbr_w;
+        }
+
+        // sort nbr list by value 
+        dijkstra_sort_nbrs(nbrs, nbr_cnt);
+        for(int j=0; j<nbr_cnt; j++){
+            fprintf(fp, "%d,%d,%d ", nbrs[j]->x, nbrs[j]->y, nbrs[j]->value); 
+        }
+        fprintf(fp, "\n");
+
+        // add closest nbr to path
+        if(nbr_cnt != 0){
+            add_stack(nbrs[0]);
+        }
+        c->visited = true;
+    }
+}
+
 int put_in_bounds(int val, int min_val, int max_val) {
-  val = max(val, min_val);
-  val = min(val, max_val);
-  return val;
+    val = max(val, min_val);
+    val = min(val, max_val);
+    return val;
 }
 
 bool is_move_legal(dir direction, int x, int y) {
-  int is_wall_present = 1;
+    int is_wall_present = 1;
 
-  switch (direction) {
-    case _n:
-      is_wall_present = maze.cells[x][y].wbm & N;
-      break;
-    case _e:
-      is_wall_present = maze.cells[x][y].wbm & E;
-      break;
-    case _s:
-      is_wall_present = maze.cells[x][y].wbm & S;
-      break;
-    default:
-      // _w
-      is_wall_present = maze.cells[x][y].wbm & W;
-      break;
-  }
-  return (is_wall_present == 0) ? true : false;
+    switch (direction) {
+        case _n:
+            is_wall_present = maze.cells[x][y].wbm & N;
+            break;
+        case _e:
+            is_wall_present = maze.cells[x][y].wbm & E;
+            break;
+        case _s:
+            is_wall_present = maze.cells[x][y].wbm & S;
+            break;
+        default:
+            // _w
+            is_wall_present = maze.cells[x][y].wbm & W;
+            break;
+    }
+    return (is_wall_present == 0) ? true : false;
 }
 
 
 
 void make_pose_update(const dir direction) {
-  int new_x = mm_pose.x;
-  int new_y = mm_pose.y;
+    int new_x = mm_pose.x;
+    int new_y = mm_pose.y;
 
-  if (is_move_legal(direction, mm_pose.x, mm_pose.y)) {
-    switch (direction) {
-      case _n:
+    if (is_move_legal(direction, mm_pose.x, mm_pose.y)) {
+        switch (direction) {
+            case _n:
         new_y = put_in_bounds(new_y - 1, 0, MAZE_SIZE - 1);
         break;
       case _e:
@@ -749,15 +723,17 @@ dir get_nbr_relative_dir(struct cell *nbr, struct cell *c)
 
 int auto_move()
 {
-    usleep(200000);
+    sleep(1);
+    //usleep(200000);
     // get reference of current cell
     struct cell *c = &maze.cells[mm_pose.x][mm_pose.y];
-    fprintf(fp, "curr %d,%d: ", c->x,c->y);
+    //fprintf(fp, "curr %d,%d: ", c->x,c->y);
     c->phy_visited = 1;
 
     reset_maze(); 
     //bfs(mm_pose.x, mm_pose.y, 8, 8);
-    dfs(mm_pose.x, mm_pose.y, 8, 8);
+    //dfs(mm_pose.x, mm_pose.y, 8, 8);
+    dijkstra(mm_pose.x, mm_pose.y, 8, 8);
 
     // get nbrs, move to non visited, min val open nbr
     struct cell *nbrs[4];
@@ -837,8 +813,8 @@ int main(int argc, char *argv[]) {
     short newwall = discover_walls(mm_pose.x, mm_pose.y);
     set_walls(mm_pose.x, mm_pose.y, newwall);
     
-    int ret = auto_move(); 
-    //int ret = manual_move();
+    //int ret = auto_move(); 
+    int ret = manual_move();
     if(ret == -1) break;
      
 
