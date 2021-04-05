@@ -605,6 +605,87 @@ void dijkstra(int dst_x, int dst_y, int src_x, int src_y)
     }
 }
 
+void astar(int dst_x, int dst_y, int src_x, int src_y) 
+{
+    // First check validity of input args
+    if (!check_coord_valid(dst_x, dst_y) || !check_coord_valid(src_x, src_y)) {
+        return;
+    }
+
+    reset_stack();
+
+    struct cell *c = &maze.cells[src_x][src_y];
+    c->value = 0;
+
+    // Add it to path
+    add_q(c);
+
+    while(!q_isempty()){
+        fprintf(fp,"count: %d\n", cq.count);
+        struct cell *c = peek_q();
+        pop_q();
+        assert(c != NULL);
+        
+        if(c->visited == true) continue;
+        
+        fprintf(fp, "\ncurr %d,%d: ", c->x,c->y);
+        // Get all possible neighbors
+        struct cell *nbr_n = get_nbr(_n, c);
+        struct cell *nbr_e = get_nbr(_e, c);
+        struct cell *nbr_s = get_nbr(_s, c);
+        struct cell *nbr_w = get_nbr(_w, c);
+
+        struct cell *nbrs[4];
+        int nbr_cnt = 0;
+        int manhattan = 0;
+        if (nbr_n != NULL && !nbr_n->visited /*&& !is_processed(nbr_n->x, nbr_n->y)*/) {
+            if(nbr_n->value > c->value + 1){
+                nbr_n->value = c->value + 1;
+                // calc manhattan heuristic
+                manhattan = abs(nbr_n->x - src_x) + abs(nbr_n->y - src_y);  
+                nbr_n->value += manhattan;
+            }
+            nbrs[nbr_cnt++] = nbr_n;
+        }
+        if (nbr_e != NULL && !nbr_e->visited /*&& !is_processed(nbr_e->x, nbr_e->y)*/) {
+            if(nbr_e->value > c->value + 1){
+                nbr_e->value = c->value + 1;
+                // calc manhattan heuristic
+                manhattan = abs(nbr_e->x - src_x) + abs(nbr_e->y - src_y);  
+                nbr_e->value += manhattan;
+            }
+            nbrs[nbr_cnt++] = nbr_e;
+        }
+        if (nbr_s != NULL && !nbr_s->visited /*&& !is_processed(nbr_s->x, nbr_s->y)*/) {
+            if(nbr_s->value > c->value + 1){
+                nbr_s->value = c->value + 1;
+                // calc manhattan heuristic
+                manhattan = abs(nbr_s->x - src_x) + abs(nbr_s->y - src_y);  
+                nbr_s->value += manhattan;
+            }
+            nbrs[nbr_cnt++] = nbr_s;
+        }
+        if (nbr_w != NULL && !nbr_w->visited /*&& !is_processed(nbr_w->x, nbr_w->y)*/) {
+            if(nbr_w->value > c->value + 1){
+                nbr_w->value = c->value + 1;
+                // calc manhattan heuristic
+                manhattan = abs(nbr_w->x - src_x) + abs(nbr_w->y - src_y);  
+                nbr_w->value += manhattan;
+            }
+            nbrs[nbr_cnt++] = nbr_w;
+        }
+
+        // sort nbr list by value 
+        dijkstra_sort_nbrs(nbrs, nbr_cnt);
+        for(int j=0; j<nbr_cnt; j++){
+            fprintf(fp, "%d,%d,%d ", nbrs[j]->x, nbrs[j]->y, nbrs[j]->value); 
+            add_q(nbrs[j]);
+        }
+        fprintf(fp, "\n");
+        
+        c->visited = true;
+    }
+}
 int put_in_bounds(int val, int min_val, int max_val) {
     val = max(val, min_val);
     val = min(val, max_val);
