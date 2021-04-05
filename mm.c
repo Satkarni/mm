@@ -6,6 +6,7 @@
 #include <time.h>
 #include <stdbool.h>
 #include <string.h>
+#include <assert.h>
 
 // Maze file
 #include "yama2002.c" // NOLINT(bugprone-suspicious-include)
@@ -20,7 +21,7 @@ int max_x, max_y;
 int cell_width = 5, cell_height = 2;
 
 
-static struct mm_pose mm_pose = {.x=0, .y=(MAZE_SIZE - 1), .curr_direction = _n};
+static struct mm_pose mm_pose = {.x= 0, .y=(MAZE_SIZE - 1), .curr_direction = _n};
 static struct maze maze;
 FILE *fp;
 /* Get mouse directional symbol based on the direction */
@@ -548,11 +549,14 @@ void dijkstra(int dst_x, int dst_y, int src_x, int src_y)
     c->value = 0;
 
     // Add it to path
-    add_stack(c);
+    add_q(c);
 
-    for(int i = 0; i < cstack.count; i++){
-        fprintf(fp,"count: %d\n", cstack.count);
-        struct cell *c = sarr[i];
+    while(!q_isempty()){
+        fprintf(fp,"count: %d\n", cq.count);
+        struct cell *c = peek_q();
+        pop_q();
+        assert(c != NULL);
+        
         if(c->visited == true) continue;
         
         fprintf(fp, "\ncurr %d,%d: ", c->x,c->y);
@@ -593,13 +597,10 @@ void dijkstra(int dst_x, int dst_y, int src_x, int src_y)
         dijkstra_sort_nbrs(nbrs, nbr_cnt);
         for(int j=0; j<nbr_cnt; j++){
             fprintf(fp, "%d,%d,%d ", nbrs[j]->x, nbrs[j]->y, nbrs[j]->value); 
+            add_q(nbrs[j]);
         }
         fprintf(fp, "\n");
-
-        // add closest nbr to path
-        if(nbr_cnt != 0){
-            add_stack(nbrs[0]);
-        }
+        
         c->visited = true;
     }
 }
@@ -723,8 +724,8 @@ dir get_nbr_relative_dir(struct cell *nbr, struct cell *c)
 
 int auto_move()
 {
-    sleep(1);
-    //usleep(200000);
+    //sleep(1);
+    usleep(200000);
     // get reference of current cell
     struct cell *c = &maze.cells[mm_pose.x][mm_pose.y];
     //fprintf(fp, "curr %d,%d: ", c->x,c->y);
@@ -813,8 +814,8 @@ int main(int argc, char *argv[]) {
     short newwall = discover_walls(mm_pose.x, mm_pose.y);
     set_walls(mm_pose.x, mm_pose.y, newwall);
     
-    //int ret = auto_move(); 
-    int ret = manual_move();
+    int ret = auto_move(); 
+    //int ret = manual_move();
     if(ret == -1) break;
      
 
