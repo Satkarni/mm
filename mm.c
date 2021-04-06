@@ -560,39 +560,16 @@ void dijkstra(int dst_x, int dst_y, int src_x, int src_y)
         if(c->visited == true) continue;
         
         fprintf(fp, "\ncurr %d,%d: ", c->x,c->y);
-        // Get all possible neighbors
-        struct cell *nbr_n = get_nbr(_n, c);
-        struct cell *nbr_e = get_nbr(_e, c);
-        struct cell *nbr_s = get_nbr(_s, c);
-        struct cell *nbr_w = get_nbr(_w, c);
 
         struct cell *nbrs[4];
-        int nbr_cnt = 0;
-        if (nbr_n != NULL && !nbr_n->visited /*&& !is_processed(nbr_n->x, nbr_n->y)*/) {
-            if(nbr_n->value > c->value + 1){
-                nbr_n->value = c->value + 1;
-            }
-            nbrs[nbr_cnt++] = nbr_n;
+        int nbr_cnt = get_nbrs(nbrs, c);
+        for(int j = 0; j < nbr_cnt; j++){
+            if(nbrs[j] != NULL && !nbrs[j]->visited){
+                if(nbrs[j]->value > c->value + 1){
+                    nbrs[j]->value = c->value + 1;
+                }
+            } 
         }
-        if (nbr_e != NULL && !nbr_e->visited /*&& !is_processed(nbr_e->x, nbr_e->y)*/) {
-            if(nbr_e->value > c->value + 1){
-                nbr_e->value = c->value + 1;
-            }
-            nbrs[nbr_cnt++] = nbr_e;
-        }
-        if (nbr_s != NULL && !nbr_s->visited /*&& !is_processed(nbr_s->x, nbr_s->y)*/) {
-            if(nbr_s->value > c->value + 1){
-                nbr_s->value = c->value + 1;
-            }
-            nbrs[nbr_cnt++] = nbr_s;
-        }
-        if (nbr_w != NULL && !nbr_w->visited /*&& !is_processed(nbr_w->x, nbr_w->y)*/) {
-            if(nbr_w->value > c->value + 1){
-                nbr_w->value = c->value + 1;
-            }
-            nbrs[nbr_cnt++] = nbr_w;
-        }
-
         // sort nbr list by value 
         dijkstra_sort_nbrs(nbrs, nbr_cnt);
         for(int j=0; j<nbr_cnt; j++){
@@ -600,7 +577,6 @@ void dijkstra(int dst_x, int dst_y, int src_x, int src_y)
             add_q(nbrs[j]);
         }
         fprintf(fp, "\n");
-        
         c->visited = true;
     }
 }
@@ -815,20 +791,21 @@ int auto_move()
     reset_maze(); 
     //bfs(mm_pose.x, mm_pose.y, 8, 8);
     //dfs(mm_pose.x, mm_pose.y, 8, 8);
-    dijkstra(mm_pose.x, mm_pose.y, 8, 8);
+    //dijkstra(mm_pose.x, mm_pose.y, 8, 8);
+    astar(mm_pose.x, mm_pose.y, 8, 8);
 
     // get nbrs, move to non visited, min val open nbr
     struct cell *nbrs[4];
     int nbr_cnt = get_nbrs(nbrs, c);  
 
-    fprintf(fp,",nbr_cnt %d", nbr_cnt); 
-    for(int k=0;k<nbr_cnt;k++){ fprintf(fp,",(%d,%d)",nbrs[k]->x,nbrs[k]->y); }
+    //fprintf(fp,",nbr_cnt %d", nbr_cnt); 
+    //for(int k=0;k<nbr_cnt;k++){ fprintf(fp,",(%d,%d)",nbrs[k]->x,nbrs[k]->y); }
     fprintf(fp,"\n");
 
     // sort nbr list by value, phy_visited etc
     sort_nbrs(nbrs, nbr_cnt);
     for(int j=0; j<nbr_cnt; j++){
-        fprintf(fp, "%d,%d,%d ", nbrs[j]->x, nbrs[j]->y, nbrs[j]->value); 
+        //fprintf(fp, "%d,%d,%d ", nbrs[j]->x, nbrs[j]->y, nbrs[j]->value); 
     }
     fprintf(fp, "\n");
 
