@@ -605,52 +605,20 @@ void astar(int dst_x, int dst_y, int src_x, int src_y)
         if(c->visited == true) continue;
         
         fprintf(fp, "\ncurr %d,%d: ", c->x,c->y);
-        // Get all possible neighbors
-        struct cell *nbr_n = get_nbr(_n, c);
-        struct cell *nbr_e = get_nbr(_e, c);
-        struct cell *nbr_s = get_nbr(_s, c);
-        struct cell *nbr_w = get_nbr(_w, c);
 
         struct cell *nbrs[4];
-        int nbr_cnt = 0;
+        int nbr_cnt = get_nbrs(nbrs, c);
         int manhattan = 0;
-        if (nbr_n != NULL && !nbr_n->visited /*&& !is_processed(nbr_n->x, nbr_n->y)*/) {
-            if(nbr_n->value > c->value + 1){
-                nbr_n->value = c->value + 1;
-                // calc manhattan heuristic
-                manhattan = abs(nbr_n->x - src_x) + abs(nbr_n->y - src_y);  
-                nbr_n->value += manhattan;
-            }
-            nbrs[nbr_cnt++] = nbr_n;
+        for(int j = 0; j < nbr_cnt; j++){
+            if(nbrs[j] != NULL && !nbrs[j]->visited){
+                if(nbrs[j]->value > c->value + 1){
+                    nbrs[j]->value = c->value + 1;
+                    // calc manhattan heuristic
+                    manhattan = abs(nbrs[j]->x - dst_x) + abs(nbrs[j]->y - dst_y);  
+                    nbrs[j]->value += manhattan;
+                }
+            } 
         }
-        if (nbr_e != NULL && !nbr_e->visited /*&& !is_processed(nbr_e->x, nbr_e->y)*/) {
-            if(nbr_e->value > c->value + 1){
-                nbr_e->value = c->value + 1;
-                // calc manhattan heuristic
-                manhattan = abs(nbr_e->x - src_x) + abs(nbr_e->y - src_y);  
-                nbr_e->value += manhattan;
-            }
-            nbrs[nbr_cnt++] = nbr_e;
-        }
-        if (nbr_s != NULL && !nbr_s->visited /*&& !is_processed(nbr_s->x, nbr_s->y)*/) {
-            if(nbr_s->value > c->value + 1){
-                nbr_s->value = c->value + 1;
-                // calc manhattan heuristic
-                manhattan = abs(nbr_s->x - src_x) + abs(nbr_s->y - src_y);  
-                nbr_s->value += manhattan;
-            }
-            nbrs[nbr_cnt++] = nbr_s;
-        }
-        if (nbr_w != NULL && !nbr_w->visited /*&& !is_processed(nbr_w->x, nbr_w->y)*/) {
-            if(nbr_w->value > c->value + 1){
-                nbr_w->value = c->value + 1;
-                // calc manhattan heuristic
-                manhattan = abs(nbr_w->x - src_x) + abs(nbr_w->y - src_y);  
-                nbr_w->value += manhattan;
-            }
-            nbrs[nbr_cnt++] = nbr_w;
-        }
-
         // sort nbr list by value 
         dijkstra_sort_nbrs(nbrs, nbr_cnt);
         for(int j=0; j<nbr_cnt; j++){
@@ -658,7 +626,6 @@ void astar(int dst_x, int dst_y, int src_x, int src_y)
             add_q(nbrs[j]);
         }
         fprintf(fp, "\n");
-        
         c->visited = true;
     }
 }
@@ -820,7 +787,8 @@ int auto_move()
     || c->x == 7 && c->y == 8
     || c->x == 8 && c->y == 7 
     || c->x == 8 && c->y == 8 ){
-        while(1);
+        // centre found
+        astar(mm_pose.x, mm_pose.y, 0, 15);
         return -1;
     }
 
@@ -874,7 +842,6 @@ int main(int argc, char *argv[]) {
     
     int ret = auto_move(); 
     //int ret = manual_move();
-    if(ret == -1) break;
      
 
     draw_maze();
@@ -885,6 +852,8 @@ int main(int argc, char *argv[]) {
 
     refresh();
     usleep(DELAY_MILLIS);
+
+    if(ret == -1) while(1); 
   }
     getch();
   fclose(fp);
