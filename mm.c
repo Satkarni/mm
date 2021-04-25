@@ -24,6 +24,14 @@ int cell_width = 5, cell_height = 2;
 static struct mm_pose mm_pose = {.x= 0, .y=(MAZE_SIZE - 1), .curr_direction = _n};
 static struct maze maze;
 FILE *fp;
+
+
+struct path{
+    struct cell *path[MAZE_SIZE * MAZE_SIZE];
+    uint8_t len;
+};
+static struct path path;
+
 /* Get mouse directional symbol based on the direction */
 char get_mouse_symbol(dir d) {
   char c = '-';
@@ -169,7 +177,12 @@ void draw_maze() {
       draw_cell_rectangle(3, i, j, get_walls(i, j));
       int x, y;
       get_center(i, j, &x, &y);
-      mvprintw(y, x, "%d" , maze.cells[i][j].value);
+      for(int k = 0; k < path.len; k++){
+        if(path.path[k]->x == i && path.path[k]->y == j){
+          mvprintw(y, x, "*");
+        }
+      }
+      //mvprintw(y, x, "%d" , maze.cells[i][j].value);
     }
   }
 }
@@ -524,7 +537,7 @@ void bfs(int dst_x, int dst_y, int src_x, int src_y) {
 }
 
 // Sort nbr list based on value
-void dijkstra_sort_nbrs(struct cell *list[], int num) {
+void sort_nbrs_by_val(struct cell *list[], int num) {
   for (int i = 0; i < num - 1; i++) {
     for (int j = 0; j < num - 1 - i; j++) {
       if ((list[j])->value > (list[j + 1])->value) {
@@ -571,7 +584,7 @@ void dijkstra(int dst_x, int dst_y, int src_x, int src_y)
             } 
         }
         // sort nbr list by value 
-        dijkstra_sort_nbrs(nbrs, nbr_cnt);
+        sort_nbrs_by_val(nbrs, nbr_cnt);
         for(int j=0; j<nbr_cnt; j++){
             fprintf(fp, "%d,%d,%d ", nbrs[j]->x, nbrs[j]->y, nbrs[j]->value); 
             add_q(nbrs[j]);
@@ -581,30 +594,57 @@ void dijkstra(int dst_x, int dst_y, int src_x, int src_y)
     }
 }
 
-void astar(int dst_x, int dst_y, int src_x, int src_y) 
+// to store previous nbr 
+struct cell *prev[MAZE_SIZE][MAZE_SIZE];
+
+void astar(int dst_x, int dst_y, int src_x, int src_y, struct path *p)
 {
     // First check validity of input args
     if (!check_coord_valid(dst_x, dst_y) || !check_coord_valid(src_x, src_y)) {
         return;
     }
 
-    reset_stack();
+    reset_q();
 
     struct cell *c = &maze.cells[src_x][src_y];
     c->value = 0;
 
-    // Add it to path
+    // Add it to q 
     add_q(c);
 
     while(!q_isempty()){
-        fprintf(fp,"count: %d\n", cq.count);
+        //fprintf(fp,"count: %d\n", cq.count);
         struct cell *c = peek_q();
         pop_q();
         assert(c != NULL);
         
         if(c->visited == true) continue;
         
-        fprintf(fp, "\ncurr %d,%d: ", c->x,c->y);
+        // destination found, reconstruct path !
+        if(c->x == dst_x && c->y == dst_y){
+             fprintf(fp, "dst found, reconstructing path...\n");
+
+             memset(&path, 0, sizeof(path));
+             struct cell *itr = c;
+             uint8_t idx = 0;
+
+             // iterate through prev till src cell is reached
+             do{
+                 assert(itr);
+                 path.path[idx++] = itr;
+                 path.len++;
+                 itr = prev[itr->x][itr->y];
+             }
+             while(!(itr->x == src_x && itr->y == src_y));
+             fprintf(fp,"path len: %d\n",path.len);
+             for(int i=0; i < path.len; i++){
+                fprintf(fp, "%d,%d ", path.path[i]->x,path.path[i]->y); 
+             }
+             fprintf(fp,"\n");
+             break;
+        }
+
+        //fprintf(fp, "\ncurr %d,%d: ", c->x,c->y);
 
         struct cell *nbrs[4];
         int nbr_cnt = get_nbrs(nbrs, c);
@@ -616,16 +656,17 @@ void astar(int dst_x, int dst_y, int src_x, int src_y)
                     // calc manhattan heuristic
                     manhattan = abs(nbrs[j]->x - dst_x) + abs(nbrs[j]->y - dst_y);  
                     nbrs[j]->value += manhattan;
+                    prev[nbrs[j]->x][nbrs[j]->y] = c;
                 }
             } 
         }
         // sort nbr list by value 
-        dijkstra_sort_nbrs(nbrs, nbr_cnt);
+        sort_nbrs_by_val(nbrs, nbr_cnt);
         for(int j=0; j<nbr_cnt; j++){
-            fprintf(fp, "%d,%d,%d ", nbrs[j]->x, nbrs[j]->y, nbrs[j]->value); 
+            //fprintf(fp, "%d,%d,%d ", nbrs[j]->x, nbrs[j]->y, nbrs[j]->value); 
             add_q(nbrs[j]);
         }
-        fprintf(fp, "\n");
+        //fprintf(fp, "\n");
         c->visited = true;
     }
 }
@@ -750,45 +791,43 @@ int auto_move()
 {
     //sleep(1);
     usleep(200000);
+    
     // get reference of current cell
     struct cell *c = &maze.cells[mm_pose.x][mm_pose.y];
     //fprintf(fp, "curr %d,%d: ", c->x,c->y);
     c->phy_visited = 1;
 
     reset_maze(); 
+    memset(prev, 0, sizeof(prev));
     //bfs(mm_pose.x, mm_pose.y, 8, 8);
     //dfs(mm_pose.x, mm_pose.y, 8, 8);
     //dijkstra(mm_pose.x, mm_pose.y, 8, 8);
-    astar(mm_pose.x, mm_pose.y, 8, 8);
+    astar(8, 8, mm_pose.x, mm_pose.y, &path);
 
-    // get nbrs, move to non visited, min val open nbr
-    struct cell *nbrs[4];
-    int nbr_cnt = get_nbrs(nbrs, c);  
-
-    //fprintf(fp,",nbr_cnt %d", nbr_cnt); 
-    //for(int k=0;k<nbr_cnt;k++){ fprintf(fp,",(%d,%d)",nbrs[k]->x,nbrs[k]->y); }
-    fprintf(fp,"\n");
-
-    // sort nbr list by value, phy_visited etc
-    sort_nbrs(nbrs, nbr_cnt);
-    for(int j=0; j<nbr_cnt; j++){
-        //fprintf(fp, "%d,%d,%d ", nbrs[j]->x, nbrs[j]->y, nbrs[j]->value); 
-    }
-    fprintf(fp, "\n");
-
-    // get relative direction of min nbr based on its x,y
-    dir d = get_nbr_relative_dir(nbrs[0], c);    
-
+    // get relative direction of next cell based on its x,y
+    struct cell *next = path.path[path.len - 1];
+    dir d = get_nbr_relative_dir(next, c);    
+    
+    // print path visualization
     // move to min nbr
-    fprintf(fp, "curr %d,%d -> nxt %d,%d @ %d", c->x, c->y, nbrs[0]->x, nbrs[0]->y, d);
+    fprintf(fp, "curr %d,%d -> nxt %d,%d @ %d\n", c->x, c->y, next->x, next->y, d);
     make_pose_update(d); 
 
     if(c->x == 7 && c->y == 7 
     || c->x == 7 && c->y == 8
     || c->x == 8 && c->y == 7 
     || c->x == 8 && c->y == 8 ){
-        // centre found
-        astar(mm_pose.x, mm_pose.y, 0, 15);
+        
+        reset_maze(); 
+        memset(prev, 0, sizeof(prev));
+        astar(c->x, c->y, 0, MAZE_SIZE - 1, &path);
+        draw_maze();
+        draw_maze_actual();
+        get_center(mm_pose.x, mm_pose.y, &mm_pose.mx, &mm_pose.my);
+        //s = get_mouse_symbol(mm_pose.curr_direction);
+        //mvprintw(mm_pose.my, mm_pose.mx, &s);
+        refresh();
+
         return -1;
     }
 
@@ -839,23 +878,20 @@ int main(int argc, char *argv[]) {
     // Simulate reading from a real sensor
     short newwall = discover_walls(mm_pose.x, mm_pose.y);
     set_walls(mm_pose.x, mm_pose.y, newwall);
-    
+
     int ret = auto_move(); 
     //int ret = manual_move();
-     
 
-    draw_maze();
-    draw_maze_actual();
-    get_center(mm_pose.x, mm_pose.y, &mm_pose.mx, &mm_pose.my);
-    s = get_mouse_symbol(mm_pose.curr_direction);
-    mvprintw(mm_pose.my, mm_pose.mx, &s);
-
-    refresh();
-    usleep(DELAY_MILLIS);
+        draw_maze();
+        draw_maze_actual();
+        get_center(mm_pose.x, mm_pose.y, &mm_pose.mx, &mm_pose.my);
+        s = get_mouse_symbol(mm_pose.curr_direction);
+        mvprintw(mm_pose.my, mm_pose.mx, &s);
+        refresh();
+        usleep(DELAY_MILLIS);
 
     if(ret == -1) while(1); 
   }
-    getch();
   fclose(fp);
   endwin(); // Restore normal terminal behavior
 }
