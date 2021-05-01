@@ -19,6 +19,9 @@
 
 int max_x, max_y;
 int cell_width = 5, cell_height = 2;
+static int goal_x = 8;
+static int goal_y= 8;
+static int search_seq_num;
 
 
 static struct mm_pose mm_pose = {.x= 0, .y=(MAZE_SIZE - 1), .curr_direction = _n};
@@ -597,16 +600,17 @@ void dijkstra(int dst_x, int dst_y, int src_x, int src_y)
 // to store previous nbr 
 struct cell *prev[MAZE_SIZE][MAZE_SIZE];
 
-void astar(int dst_x, int dst_y, int src_x, int src_y, struct path *p)
+int astar(int dst_x, int dst_y, int src_x, int src_y, struct path *p)
 {
     // First check validity of input args
     if (!check_coord_valid(dst_x, dst_y) || !check_coord_valid(src_x, src_y)) {
-        return;
+        return -1;
     }
 
     reset_q();
 
     struct cell *c = &maze.cells[src_x][src_y];
+    assert(c);
     c->value = 0;
 
     // Add it to q 
@@ -622,7 +626,7 @@ void astar(int dst_x, int dst_y, int src_x, int src_y, struct path *p)
         
         // destination found, reconstruct path !
         if(c->x == dst_x && c->y == dst_y){
-             fprintf(fp, "dst found, reconstructing path...\n");
+             fprintf(fp, "%d,%d dst found, reconstructing path...\n", c->x, c->y);
 
              memset(&path, 0, sizeof(path));
              struct cell *itr = c;
@@ -633,15 +637,20 @@ void astar(int dst_x, int dst_y, int src_x, int src_y, struct path *p)
                  assert(itr);
                  path.path[idx++] = itr;
                  path.len++;
-                 itr = prev[itr->x][itr->y];
+                 if(prev[itr->x][itr->y] != NULL){
+                     itr = prev[itr->x][itr->y];
+                 }else{
+                     break;
+                 }
              }
              while(!(itr->x == src_x && itr->y == src_y));
-             fprintf(fp,"path len: %d\n",path.len);
+             fprintf(fp,"path len: %d ",path.len);
              for(int i=0; i < path.len; i++){
                 fprintf(fp, "%d,%d ", path.path[i]->x,path.path[i]->y); 
              }
              fprintf(fp,"\n");
-             break;
+             fflush(fp);
+             return 1;
         }
 
         //fprintf(fp, "\ncurr %d,%d: ", c->x,c->y);
@@ -669,6 +678,7 @@ void astar(int dst_x, int dst_y, int src_x, int src_y, struct path *p)
         //fprintf(fp, "\n");
         c->visited = true;
     }
+    return 0;
 }
 int put_in_bounds(int val, int min_val, int max_val) {
     val = max(val, min_val);
@@ -753,7 +763,7 @@ void reset_maze()
     // to redraw the flood values
     for (int i = 0; i < MAZE_SIZE; i++) {
         for (int j = 0; j < MAZE_SIZE; j++) {
-            maze.cells[i][j].value = 255;
+            maze.cells[i][j].value = 0xffff;
             maze.cells[i][j].visited = false;
         }
     }
@@ -786,12 +796,11 @@ dir get_nbr_relative_dir(struct cell *nbr, struct cell *c)
 
    return d;
 }
-
 int auto_move()
 {
     //sleep(1);
-    usleep(200000);
-    
+    usleep(50000);
+
     // get reference of current cell
     struct cell *c = &maze.cells[mm_pose.x][mm_pose.y];
     //fprintf(fp, "curr %d,%d: ", c->x,c->y);
@@ -799,39 +808,67 @@ int auto_move()
 
     reset_maze(); 
     memset(prev, 0, sizeof(prev));
+
     //bfs(mm_pose.x, mm_pose.y, 8, 8);
     //dfs(mm_pose.x, mm_pose.y, 8, 8);
     //dijkstra(mm_pose.x, mm_pose.y, 8, 8);
-    astar(8, 8, mm_pose.x, mm_pose.y, &path);
+    /* maze exploration waypoints: start to center, then to each corner and back, then corner to corner */
+    struct waypoints{
+        int x;
+        int y;
+    };
+    static struct waypoints waypoints[15] = {
+        { 8,8 },
+        { 0,0 },
+        { 8,8 },
+        { 15,0},
+        { 8,8 },
+        { 15,15 },
+        { 8,8 },
+        { 0,15 },
+        { 0,0 },
+        { 15,0 },
+        { 15,15 },
+        { 0, 15 },
+        { 8,8 } 
+    };
+    static int k = 0;
+    if(c->x == waypoints[k].x && c->y == waypoints[k].y && search_seq_num == k){
+        memset(&path, 0, sizeof(path));
+        k++;
+        if(k == 13) k = 11; /* Loop between start and center once exploration done */
+        search_seq_num = k; 
+        goal_x = waypoints[k].x;
+        goal_y = waypoints[k].y;
+    }
+
+    fprintf(fp, "goal %d,%d curr %d,%d\n", goal_x, goal_y, mm_pose.x, mm_pose.y);
+    int ret = astar(goal_x, goal_y, mm_pose.x, mm_pose.y, &path);
 
     // get relative direction of next cell based on its x,y
     struct cell *next = path.path[path.len - 1];
+    assert(next);
     dir d = get_nbr_relative_dir(next, c);    
-    
+
     // print path visualization
     // move to min nbr
     fprintf(fp, "curr %d,%d -> nxt %d,%d @ %d\n", c->x, c->y, next->x, next->y, d);
     make_pose_update(d); 
 
-    if(c->x == 7 && c->y == 7 
-    || c->x == 7 && c->y == 8
-    || c->x == 8 && c->y == 7 
-    || c->x == 8 && c->y == 8 ){
-        
-        reset_maze(); 
-        memset(prev, 0, sizeof(prev));
-        astar(c->x, c->y, 0, MAZE_SIZE - 1, &path);
-        draw_maze();
-        draw_maze_actual();
-        get_center(mm_pose.x, mm_pose.y, &mm_pose.mx, &mm_pose.my);
-        //s = get_mouse_symbol(mm_pose.curr_direction);
-        //mvprintw(mm_pose.my, mm_pose.mx, &s);
-        refresh();
-
-        return -1;
-    }
 
     return 0;
+}
+
+void status_update()
+{
+    int y = 35;
+    mvprintw(y++,5,"cur %d,%d", mm_pose.x, mm_pose.y); 
+    mvprintw(y,5,"shortest path: len %d", path.len);
+    for(int i = 0; i < path.len; i++){
+        mvprintw(y, 30+6*i, "%d,%d ", path.path[path.len-1-i]->x, path.path[path.len-1-i]->y);
+    }
+    y++;
+    mvprintw(y,5,"search_seq_num %d", search_seq_num);
 }
 
 int main(int argc, char *argv[]) {
@@ -887,10 +924,9 @@ int main(int argc, char *argv[]) {
         get_center(mm_pose.x, mm_pose.y, &mm_pose.mx, &mm_pose.my);
         s = get_mouse_symbol(mm_pose.curr_direction);
         mvprintw(mm_pose.my, mm_pose.mx, &s);
+        status_update();
         refresh();
         usleep(DELAY_MILLIS);
-
-    if(ret == -1) while(1); 
   }
   fclose(fp);
   endwin(); // Restore normal terminal behavior
