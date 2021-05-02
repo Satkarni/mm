@@ -9,7 +9,7 @@
 #include <assert.h>
 
 // Maze file
-#include "yama2002.c" // NOLINT(bugprone-suspicious-include)
+#include "uk2015f.c" // NOLINT(bugprone-suspicious-include)
 
 // Micromouse struct and constants definitions
 #include "mm.h"
@@ -126,7 +126,7 @@ short discover_walls(int x, int y) {
   // x,y (0,15)  => 0
   // x,y (15,0)  => 255
   // x,y (15,15) => 240
-  w = yama2002_maz[MAZE_SIZE - 1 + MAZE_SIZE * x - y];
+  w = uk2015f_maz[MAZE_SIZE - 1 + MAZE_SIZE * x - y];
   return w;
 }
 
@@ -817,7 +817,7 @@ int auto_move()
         int x;
         int y;
     };
-    static struct waypoints waypoints[15] = {
+    static struct waypoints waypoints[25] = {
         { 8,8 },
         { 0,0 },
         { 8,8 },
@@ -830,13 +830,18 @@ int auto_move()
         { 15,0 },
         { 15,15 },
         { 0, 15 },
+        { 0, 7 },
+        { 7, 0 },
+        { 15,7 },
+        { 7, 15 },
+        { 0, 15 },
         { 8,8 } 
     };
     static int k = 0;
     if(c->x == waypoints[k].x && c->y == waypoints[k].y && search_seq_num == k){
         memset(&path, 0, sizeof(path));
         k++;
-        if(k == 13) k = 11; /* Loop between start and center once exploration done */
+        if(k == 18) k = 16; /* Loop between start and center once exploration done */
         search_seq_num = k; 
         goal_x = waypoints[k].x;
         goal_y = waypoints[k].y;
