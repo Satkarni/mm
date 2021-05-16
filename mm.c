@@ -1,4 +1,7 @@
-// demo.c
+// Micromouse struct and constants definitions
+#include "mm.h"
+#include "utils.h"
+
 #include <ncurses.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -11,8 +14,6 @@
 // Maze file
 #include "uk2015f.c" // NOLINT(bugprone-suspicious-include)
 
-// Micromouse struct and constants definitions
-#include "mm.h"
 
 #define DELAY_MILLIS  100000
 #define KEY_ESC       27
@@ -221,55 +222,6 @@ int check_if_nbr_open(struct cell *c, dir nbr_dir) {
   return 0;
 }
 
-// Container for cell pointer queue
-struct cell *arr[MAZE_SIZE * MAZE_SIZE];
-
-struct cq {
-  int r;
-  int w;
-  int count;
-};
-
-struct cq cq = {.r = 0, .w = 0, .count = 0};
-
-// stack Container for cell pointer queue
-struct cell *sarr[MAZE_SIZE * MAZE_SIZE];
-
-struct cstack{
-  int r;
-  int w;
-  int count;
-};
-
-struct cstack cstack = {.r = 0, .w = -1, .count = 0};
-
-bool is_processed_stack(int nx, int ny) {
-    // If cell (nx, ny) is currently in the stack, skip
-    // processing it again
-    for (int i = 0; i < cstack.count; i++) {
-        struct cell *in_queue = sarr[i];
-        if(in_queue != NULL){
-            if (in_queue->x == nx && in_queue->y == ny) {
-                return true;
-            }
-        }
-        return false;
-    }
-}
-
-// TODO: Make more efficient later on w/ hashing
-bool is_processed(int nx, int ny) {
-  // If cell (nx, ny) is currently in the queue, skip
-  // processing it again
-  for (int i = 0; i < cq.count; i++) {
-    struct cell *in_queue = arr[i];
-    if (in_queue->x == nx && in_queue->y == ny) {
-      return true;
-    }
-  }
-  return false;
-}
-
 // Returns pointer to valid and open nbr
 struct cell *get_nbr(dir d, struct cell *p) {
   int isvalid = 0, is_open = 0;
@@ -351,69 +303,6 @@ void sort_nbrs(struct cell *list[], int num) {
   }
 }
 
-int q_isempty() {
-  return (cq.count == 0);
-}
-
-void add_q(struct cell *p) {
-  arr[cq.w] = p;
-  cq.w = (cq.w + 1) % (MAZE_SIZE * MAZE_SIZE);
-  cq.count++;
-}
-
-struct cell *peek_q() {
-  if (!q_isempty())
-    return arr[cq.r];
-  else
-    return NULL;
-}
-
-void pop_q() {
-  if (!q_isempty()) {
-    cq.r = (cq.r + 1) % (MAZE_SIZE * MAZE_SIZE);
-    cq.count--;
-  }
-}
-
-void q_status() {
-  mvprintw(41, 0, "c %d, r %d, w %d\n", cq.count, cq.r, cq.w);
-}
-
-void reset_q() {
-  cq.w = cq.r = cq.count = 0;
-}
-
-int stack_isempty() {
-  return (cstack.count == 0);
-}
-
-void add_stack(struct cell *p) {
-  sarr[++cstack.w] = p;
-  cstack.count++;
-}
-
-struct cell *peek_stack() {
-  if (!stack_isempty())
-    return sarr[cstack.w];
-  else
-    return NULL;
-}
-
-void pop_stack() {
-  if (!stack_isempty()) {
-    cstack.w--;
-    cstack.count--;
-  }
-}
-
-void stack_status() {
-  mvprintw(41, 0, "c %d, r %d, w %d\n", cstack.count, cstack.r, cstack.w);
-}
-
-void reset_stack() {
-   cstack.r = cstack.count = 0;
-   cstack.w = -1;
-}
 
 void dfs(int dst_x, int dst_y, int src_x, int src_y) {
     // First check validity of input args
@@ -422,23 +311,23 @@ void dfs(int dst_x, int dst_y, int src_x, int src_y) {
     }
 
     // Initialize queue w/ src cell
-    reset_stack();
+    stack_reset();
 
     // Add starting cell to queue
     struct cell *p = &(maze.cells[src_x][src_y]);
     p->value = 0;
-    add_stack(p);
+    stack_add(p);
     int curr_sz;
     //fprintf(fp,"%s\n","stack start*****************************************");
     while (!stack_isempty()) {
-        curr_sz = cstack.count;
+        curr_sz = 1; 
         //fprintf(fp,"stack count %d\n",curr_sz);
         if(curr_sz == 0) break;
 
         for (int i = 0; i < curr_sz; i++) {
             // Dequeue a cell
-            struct cell* curr = peek_stack();
-            pop_stack();
+            struct cell* curr = stack_peek();
+            stack_pop();
 
             // Visit curr and mark its distance
             curr->visited = true;
@@ -450,24 +339,24 @@ void dfs(int dst_x, int dst_y, int src_x, int src_y) {
             struct cell *nbr_s = get_nbr(_s, curr);
             struct cell *nbr_w = get_nbr(_w, curr);
 
-            if (nbr_n != NULL && !nbr_n->visited && !is_processed_stack(nbr_n->x, nbr_n->y)) {
+            if (nbr_n != NULL && !nbr_n->visited && !stack_is_processed(nbr_n->x, nbr_n->y)) {
                 nbr_n->value = curr->value + 1;
-                add_stack(nbr_n);
+                stack_add(nbr_n);
                 //fprintf(fp, "add %d,%d ", nbr_n->x, nbr_n->y);
             }
-            if (nbr_e != NULL && !nbr_e->visited && !is_processed_stack(nbr_e->x, nbr_e->y)) {
+            if (nbr_e != NULL && !nbr_e->visited && !stack_is_processed(nbr_e->x, nbr_e->y)) {
                 nbr_e->value = curr->value + 1;
-                add_stack(nbr_e);
+                stack_add(nbr_e);
                 //fprintf(fp, "add %d,%d ", nbr_e->x, nbr_e->y);
             }
-            if (nbr_s != NULL && !nbr_s->visited && !is_processed_stack(nbr_s->x, nbr_s->y)) {
+            if (nbr_s != NULL && !nbr_s->visited && !stack_is_processed(nbr_s->x, nbr_s->y)) {
                 nbr_s->value = curr->value + 1;
-                add_stack(nbr_s);
+                stack_add(nbr_s);
                 //fprintf(fp, "add %d,%d ", nbr_s->x, nbr_s->y);
             }
-            if (nbr_w != NULL && !nbr_w->visited && !is_processed_stack(nbr_w->x, nbr_w->y)) {
+            if (nbr_w != NULL && !nbr_w->visited && !stack_is_processed(nbr_w->x, nbr_w->y)) {
                 nbr_w->value = curr->value + 1;
-                add_stack(nbr_w);
+                stack_add(nbr_w);
                 //fprintf(fp, "add %d,%d ", nbr_w->x, nbr_w->y);
             }
             fflush(fp);
@@ -475,7 +364,7 @@ void dfs(int dst_x, int dst_y, int src_x, int src_y) {
   }
   //fprintf(fp,"\n%s\n","stack end**************************************"); 
   // Clean up after DFS is done
-  reset_stack();
+  stack_reset();
 }
 
 void bfs(int dst_x, int dst_y, int src_x, int src_y) {
@@ -485,24 +374,24 @@ void bfs(int dst_x, int dst_y, int src_x, int src_y) {
   }
 
   // Initialize queue w/ src cell
-  reset_q();
+  q_reset();
 
   // Add starting cell to queue
   struct cell *p = &(maze.cells[src_x][src_y]);
   p->value = 0;
-  add_q(p);
+  q_add(p);
 
   int curr_sz;
   int dist = 0;
   //fprintf(fp,"%s\n","q start*****************************************");
   while (!q_isempty()) {
-    curr_sz = cq.count;
+    curr_sz = 1; //cq.count;
     //fprintf(fp,"q count %d\n",curr_sz);
     if(curr_sz == 0) break;
     for (int i = 0; i < curr_sz; i++) {
       // Dequeue a cell
-      struct cell* curr = peek_q();
-      pop_q();
+      struct cell* curr = q_peek();
+      q_pop();
 
       // Visit curr and mark its distance
       curr->visited = true;
@@ -514,20 +403,20 @@ void bfs(int dst_x, int dst_y, int src_x, int src_y) {
       struct cell *nbr_s = get_nbr(_s, curr);
       struct cell *nbr_w = get_nbr(_w, curr);
 
-      if (nbr_n != NULL && !nbr_n->visited && !is_processed(nbr_n->x, nbr_n->y)) {
-        add_q(nbr_n);
+      if (nbr_n != NULL && !nbr_n->visited && !q_is_processed(nbr_n->x, nbr_n->y)) {
+        q_add(nbr_n);
         //fprintf(fp, "add %d,%d ", nbr_n->x, nbr_n->y);
       }
-      if (nbr_e != NULL && !nbr_e->visited && !is_processed(nbr_e->x, nbr_e->y)) {
-        add_q(nbr_e);
+      if (nbr_e != NULL && !nbr_e->visited && !q_is_processed(nbr_e->x, nbr_e->y)) {
+        q_add(nbr_e);
         //fprintf(fp, "add %d,%d ", nbr_e->x, nbr_e->y);
       }
-      if (nbr_s != NULL && !nbr_s->visited && !is_processed(nbr_s->x, nbr_s->y)) {
-        add_q(nbr_s);
+      if (nbr_s != NULL && !nbr_s->visited && !q_is_processed(nbr_s->x, nbr_s->y)) {
+        q_add(nbr_s);
         //fprintf(fp, "add %d,%d ", nbr_s->x, nbr_s->y);
       }
-      if (nbr_w != NULL && !nbr_w->visited && !is_processed(nbr_w->x, nbr_w->y)) {
-        add_q(nbr_w);
+      if (nbr_w != NULL && !nbr_w->visited && !q_is_processed(nbr_w->x, nbr_w->y)) {
+        q_add(nbr_w);
         //fprintf(fp, "add %d,%d ", nbr_w->x, nbr_w->y);
       }
       fflush(fp);
@@ -536,7 +425,7 @@ void bfs(int dst_x, int dst_y, int src_x, int src_y) {
   }
   //fprintf(fp,"\n%s\n","q end**************************************"); 
   // Clean up after BFS is done
-  reset_q();
+  q_reset();
 }
 
 // Sort nbr list based on value
@@ -559,18 +448,18 @@ void dijkstra(int dst_x, int dst_y, int src_x, int src_y)
         return;
     }
 
-    reset_stack();
+    stack_reset();
 
     struct cell *c = &maze.cells[src_x][src_y];
     c->value = 0;
 
     // Add it to path
-    add_q(c);
+    q_add(c);
 
     while(!q_isempty()){
-        fprintf(fp,"count: %d\n", cq.count);
-        struct cell *c = peek_q();
-        pop_q();
+
+        struct cell *c = q_peek();
+        q_pop();
         assert(c != NULL);
         
         if(c->visited == true) continue;
@@ -590,7 +479,7 @@ void dijkstra(int dst_x, int dst_y, int src_x, int src_y)
         sort_nbrs_by_val(nbrs, nbr_cnt);
         for(int j=0; j<nbr_cnt; j++){
             fprintf(fp, "%d,%d,%d ", nbrs[j]->x, nbrs[j]->y, nbrs[j]->value); 
-            add_q(nbrs[j]);
+            q_add(nbrs[j]);
         }
         fprintf(fp, "\n");
         c->visited = true;
@@ -607,19 +496,19 @@ int astar(int dst_x, int dst_y, int src_x, int src_y, struct path *p)
         return -1;
     }
 
-    reset_q();
+    q_reset();
 
     struct cell *c = &maze.cells[src_x][src_y];
     assert(c);
     c->value = 0;
 
     // Add it to q 
-    add_q(c);
+    q_add(c);
 
     while(!q_isempty()){
         //fprintf(fp,"count: %d\n", cq.count);
-        struct cell *c = peek_q();
-        pop_q();
+        struct cell *c = q_peek();
+        q_pop();
         assert(c != NULL);
         
         if(c->visited == true) continue;
@@ -673,7 +562,7 @@ int astar(int dst_x, int dst_y, int src_x, int src_y, struct path *p)
         sort_nbrs_by_val(nbrs, nbr_cnt);
         for(int j=0; j<nbr_cnt; j++){
             //fprintf(fp, "%d,%d,%d ", nbrs[j]->x, nbrs[j]->y, nbrs[j]->value); 
-            add_q(nbrs[j]);
+            q_add(nbrs[j]);
         }
         //fprintf(fp, "\n");
         c->visited = true;
@@ -848,7 +737,7 @@ int auto_move()
     }
 
     fprintf(fp, "goal %d,%d curr %d,%d\n", goal_x, goal_y, mm_pose.x, mm_pose.y);
-    int ret = astar(goal_x, goal_y, mm_pose.x, mm_pose.y, &path);
+    astar(goal_x, goal_y, mm_pose.x, mm_pose.y, &path);
 
     // get relative direction of next cell based on its x,y
     struct cell *next = path.path[path.len - 1];
@@ -901,8 +790,6 @@ int main(int argc, char *argv[]) {
   }
   static char s;
 
-  int f_flood = 0;
-
   draw_maze();
   draw_maze_actual();
 
@@ -921,8 +808,8 @@ int main(int argc, char *argv[]) {
     short newwall = discover_walls(mm_pose.x, mm_pose.y);
     set_walls(mm_pose.x, mm_pose.y, newwall);
 
-    int ret = auto_move(); 
-    //int ret = manual_move();
+     auto_move(); 
+    //manual_move();
 
         draw_maze();
         draw_maze_actual();

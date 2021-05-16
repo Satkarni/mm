@@ -2,8 +2,10 @@
 *.gif
 *.zip
 *.py
-m
+mm
 .DS_Store
 tags
 cscope.out
 log.txt
+
+*.o
