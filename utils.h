@@ -4,7 +4,7 @@
 #include "mm.h"
 
 #include <stdbool.h>
-//lkjdflkj
+/* Making an actual comment */
 /* Queue API */
 int q_isempty();
 
