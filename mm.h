@@ -42,7 +42,7 @@ struct mm_pose {
 struct cell {
   int x;
   int y;
-  short wbm;    // Wall bit-map
+  int wbm;    // Wall bit-map
   bool visited; // Used in flood fill
   int phy_visited; // Has mouse physically visited this cell ?
   int value;

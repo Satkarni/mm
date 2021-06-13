@@ -2,7 +2,7 @@
 
 This is a micromouse solver project.
 The goal is: given a maze and a starting point in the maze, figure out a path (possibly the 
-shortest in number of steps) to the center of the maze.
+shortest, in number of steps) to the center of the maze.
 This is a key part in any micromouse competition.
 The second part of the puzzle is interacting with hardware and sensors to physically move
 motors and cause a robot to navigate a physical maze.
