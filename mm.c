@@ -12,10 +12,6 @@
 #include <assert.h>
 #include <unistd.h>
 
-// Maze file
-#include "uk2015f.c" // NOLINT(bugprone-suspicious-include)
-
-
 #define DELAY_MILLIS  100000
 #define KEY_ESC       27
 
@@ -794,18 +790,18 @@ void status_update() {
 
 void args_parse(int argc, char *argv[]) {
   char *maze_name = NULL;
-  int c;
+  int c = 0, arg_found = 0;
   while ((c = getopt (argc, argv, "m:")) != -1) {
     switch(c) {
       case 'm':
         maze_name = optarg;
         init_maze(maze_name);
-        break;
-      default:
-        printf("No maze file provided. Using default maze uk2015f.maz");
-        init_maze("uk2015f.maz");
+        arg_found = 1;
         break;
     }
+  }
+  if(arg_found != 1){
+        init_maze("uk2015f.maz");
   }
 }
 
