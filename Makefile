@@ -1,16 +1,17 @@
 
 
 TGTBIN := mm
+BUILDDIR := build
 
 SRCS := mm.c utils.c
-OBJS := $(SRCS:.c=.o)
+OBJS = $(patsubst %.c,$(BUILDDIR)/%.o,$(SRCS))
+DEPS = $(OBJS:.o=.d)
 
 CC := gcc
 CFLAGS := -Wall 
-INCLUDES := -Imicromouse_maze_tool-master/mazefiles/cfiles
+INCLUDES := 
 LIBS := -lncurses
 LFLAGS := 
-
 
 .PHONY: debug release depend clean
 debug: $(TGTBIN)
@@ -23,12 +24,18 @@ $(TGTBIN): $(OBJS)
 	@echo Linking target binary...
 	$(CC) $(CFLAGS) $(INCLUDES) -o $(TGTBIN) $(OBJS) $(LFLAGS) $(LIBS)
 
-.c.o:
+$(BUILDDIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
-clean:
-	rm -f *.o $(TGTBIN)
+$(BUILDDIR)/%.d: %.c
+	$(CC) -MM -MT $@ $(CFLAGS) $(INCLUDES) $< -o $@
 
-depend: $(SRCS)
-	makedepend $(INCLUDES) $^
+-include $(DEPS)
+
+clean:
+	rm -f $(BUILDDIR)/*.o $(TGTBIN)
+
+tar:
+	tar cvf mm.tar.gz ./ -v '*build*' '*mm*' '*tags*'
+
 

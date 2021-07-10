@@ -9,3 +9,5 @@ cscope.out
 log.txt
 
 *.o
+build/*
+!.keep
